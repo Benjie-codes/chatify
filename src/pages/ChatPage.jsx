@@ -17,7 +17,7 @@ export default function ChatPage() {
   const navigate = useNavigate()
   const { logout } = useAuth()
   const { sendMessage, getContactPublicKey, loadConversations, loadHistory } = useMessaging()
-  
+
   const user = useAuthStore(s => s.user)
   const isKeyReady = useKeyStore(s => s.isReady)
   const isConnected = true // Mock connection status for now; in reality get from connectionStore
@@ -27,7 +27,7 @@ export default function ChatPage() {
   const activeContactId = useChatStore(s => s.activeContactId)
   const setActiveContactId = useChatStore(s => s.setActiveContactId)
   const setContacts = useChatStore(s => s.setContacts)
-  
+
   const [inputText, setInputText] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
@@ -53,7 +53,7 @@ export default function ChatPage() {
   }, [isDark])
 
   // Filter contacts locally when not searching the backend
-  const filteredContacts = contacts.filter(c => 
+  const filteredContacts = contacts.filter(c =>
     (c.display_name || c.username).toLowerCase().includes(searchQuery.toLowerCase())
   )
 
@@ -149,13 +149,13 @@ export default function ChatPage() {
 
       {/* --- LEFT SIDEBAR --- */}
       <aside className="w-[320px] shrink-0 sidebar-bg flex flex-col h-full border-r">
-        
+
         {/* Sidebar Header (Current User) */}
         <div className="p-5 flex items-center justify-between border-b border-white/5">
           <div className="flex items-center gap-3">
             <div className="relative">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-bold shadow-md">
-                {user?.display_name?.substring(0,2).toUpperCase() || 'ME'}
+                {user?.display_name?.substring(0, 2).toUpperCase() || 'ME'}
               </div>
               <div className="absolute bottom-0 right-0 w-3 h-3 bg-accent-500 border-2 border-sidebar rounded-full" />
             </div>
@@ -164,7 +164,7 @@ export default function ChatPage() {
               <p className="text-muted text-[12px]">Available</p>
             </div>
           </div>
-          
+
           <button onClick={logout} className="p-2 text-muted hover:text-white transition-colors" title="Logout">
             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -183,9 +183,9 @@ export default function ChatPage() {
         {/* Search */}
         <div className="p-4 border-b border-white/5">
           <div className="relative">
-            <input 
-              type="text" 
-              placeholder="Search users..." 
+            <input
+              type="text"
+              placeholder="Search users..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="w-full bg-white/5 border border-white/5 text-white text-sm rounded-lg py-2.5 pl-10 pr-4 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-primary-500 transition-all"
@@ -203,7 +203,7 @@ export default function ChatPage() {
               <div className="p-4 text-sm text-slate-400 text-center animate-pulse">Searching global network...</div>
             ) : searchResults.length > 0 ? (
               searchResults.map(contact => (
-                <ContactItem 
+                <ContactItem
                   key={contact.id}
                   name={contact.display_name || contact.username}
                   preview={`@${contact.username}`}
@@ -219,7 +219,7 @@ export default function ChatPage() {
             )
           ) : (
             filteredContacts.map(contact => (
-              <ContactItem 
+              <ContactItem
                 key={contact.id}
                 name={contact.display_name || contact.username}
                 preview={contact.last_message || 'Start a conversation...'}
@@ -242,11 +242,11 @@ export default function ChatPage() {
             <header className="chat-header h-[72px] px-6 flex items-center justify-between shrink-0 shadow-sm z-10 border-b">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-primary-600 flex items-center justify-center text-white font-bold">
-                  {(activeContact?.display_name || activeContact?.username || 'U').substring(0,2).toUpperCase()}
+                  {(activeContact?.display_name || activeContact?.username || 'U').substring(0, 2).toUpperCase()}
                 </div>
                 <div>
-                  <h2 className="font-semibold text-[15px]" style={{color:'var(--color-header-text)'}}>{activeContact?.display_name || activeContact?.username}</h2>
-                  <p className="text-[12px]" style={{color:'var(--color-subtext)'}}>{activeContact?.is_online ? 'Online' : 'Offline'}</p>
+                  <h2 className="font-semibold text-[15px]" style={{ color: 'var(--color-header-text)' }}>{activeContact?.display_name || activeContact?.username}</h2>
+                  <p className="text-[12px]" style={{ color: 'var(--color-subtext)' }}>{activeContact?.is_online ? 'Online' : 'Offline'}</p>
                 </div>
               </div>
 
@@ -285,7 +285,7 @@ export default function ChatPage() {
             {/* Message Timeline */}
             <div className="flex-1 overflow-y-auto p-6 scrollbar-hide">
               <SystemMessage text={`You started a secure conversation with ${activeContact?.display_name || activeContact?.username}`} />
-              
+
               {(() => {
                 const msgs = conversations[activeContactId] || []
                 // Deduplicate: hide a message if the previous message has the same
@@ -302,7 +302,7 @@ export default function ChatPage() {
                   return !(sameContent && sameSender && tooClose)
                 })
                 return deduped.map((msg, idx) => (
-                  <MessageBubble 
+                  <MessageBubble
                     key={msg.id || idx}
                     text={msg.decryptedText}
                     sender={String(msg.senderId) === String(user.id) ? user.display_name : (activeContact?.display_name || activeContact?.username)}
@@ -327,9 +327,9 @@ export default function ChatPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                   </svg>
                 </button>
-                
-                <input 
-                  type="text" 
+
+                <input
+                  type="text"
                   value={inputText}
                   onChange={e => setInputText(e.target.value)}
                   placeholder="Write a message"
@@ -342,8 +342,8 @@ export default function ChatPage() {
                   </svg>
                 </button>
 
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   disabled={!inputText.trim()}
                   className="w-10 h-10 rounded-full bg-primary-500 hover:bg-primary-600 flex items-center justify-center text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
                 >

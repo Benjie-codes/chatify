@@ -1,16 +1,42 @@
-# React + Vite
+# WhisperBox
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+WhisperBox is an end-to-end encrypted (E2EE) messaging platform designed to prioritize user privacy and secure communication.
 
-Currently, two official plugins are available:
+## Architecture Diagram
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```mermaid
+graph TD
+    ClientA[Client A] <-->|WebSocket w/ E2EE Payloads| Server[Node/WebSocket Server]
+    ClientB[Client B] <-->|WebSocket w/ E2EE Payloads| Server
+    Server <--> Database[(Database)]
+    ClientA -.->|Upload/Download Media| CDN[Public CDN]
+    ClientB -.->|Upload/Download Media| CDN
+```
 
-## React Compiler
+## Encryption Flow Explanation
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+WhisperBox employs robust end-to-end encryption to ensure that messages and metadata are never exposed in plaintext to the central server.
+1. **Message Generation**: The sender creates a plaintext message in the client interface.
+2. **Encryption**: The plaintext is encrypted locally on the sender's device using AES-GCM. A unique Initialization Vector (IV) is generated for each message.
+3. **Transmission**: The encrypted payload (ciphertext + IV) is transmitted over a secure WebSocket connection to the server.
+4. **Distribution**: The server receives the opaque payload and routes it to the intended recipient(s). The server cannot decrypt the message as it lacks the cryptographic keys.
+5. **Decryption**: The recipient receives the encrypted payload and decrypts it locally using the shared session key and the provided IV to recover the plaintext message.
 
-## Expanding the ESLint configuration
+## Key Management Explanation
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- **Key Generation**: Cryptographic key pairs are generated securely on the client side utilizing the Web Crypto API.
+- **Key Exchange**: The application utilizes a secure key exchange mechanism (such as ECDH - Elliptic Curve Diffie-Hellman) to establish shared secrets between communicating parties without transmitting the secret itself over the network.
+- **Storage**: Private keys are stored locally on the user's device and never leave the client context. Public keys are distributed via the server to facilitate the initial key exchange.
+- **Session Keys**: Symmetric session keys derived from the shared secret are used to encrypt and decrypt the actual messages, ensuring optimal performance and security.
+
+## Security Trade-offs
+
+- **Metadata Visibility**: Although the message contents are strictly encrypted, some metadata such as message timestamps, sender/recipient identities, and ciphertext sizes may still be visible to the server. While padding messages can mitigate size-based traffic analysis, it increases bandwidth consumption.
+- **Key Recovery vs. Security**: Because private keys are stored entirely locally and are never escrowed on the server, a lost device or cleared browser storage results in permanent loss of access to past encrypted messages. This prioritizes absolute security over user convenience.
+- **Protocol Complexity**: Implementing advanced cryptographic properties like Perfect Forward Secrecy (PFS) increases protocol complexity and state management overhead, requiring careful implementation to avoid race conditions during asynchronous message delivery.
+
+## Known Limitations
+
+- **Media Implementation Limitations**: WhisperBox currently faces technical limitations in handling rich media sharing. While the architecture successfully supports transmitting decryption metadata (keys and IVs) securely over the WebSocket channel, the actual processing of large encrypted media files via a public CDN remains constrained. Encrypting and decrypting large binary files entirely on the client side introduces significant memory overhead and performance bottlenecks, making seamless media sharing challenging to achieve with the current browser constraints.
+- **Multi-Device Support**: Synchronizing E2EE keys and message history across multiple devices for a single user is currently unsupported, as it requires a complex mechanism for securely bridging trust and transferring private keys between devices.
+- **Offline Messaging**: Securely queueing and delivering messages to offline users introduces challenges related to the storage of encrypted payloads on the server and ensuring forward secrecy for messages that have not yet been delivered.
