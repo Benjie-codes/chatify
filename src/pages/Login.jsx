@@ -5,7 +5,7 @@ import grydGradient from '../assets/gryd-gradient.jpg'
 // Sub-components
 function Label({ htmlFor, children }) {
   return (
-    <label htmlFor={htmlFor} className="block text-sm font-semibold text-slate-900 mb-1.5">
+    <label htmlFor={htmlFor} className="block text-sm font-semibold text-slate-900 dark:text-slate-200 mb-1.5">
       {children}
     </label>
   )
@@ -23,18 +23,10 @@ function Input(props) {
 function ErrorBanner({ message, onDismiss }) {
   if (!message) return null
   return (
-    <div className="mb-6 flex items-start gap-3 rounded-[10px] bg-red-50 border border-red-100 px-4 py-3 animate-fade-in">
-      <p className="text-sm text-red-600 flex-1">{message}</p>
-      <button onClick={onDismiss} className="text-red-400 hover:text-red-600">×</button>
+    <div className="mb-6 flex items-start gap-3 rounded-[10px] bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 px-4 py-3 animate-fade-in">
+      <p className="text-sm text-red-600 dark:text-red-400 flex-1">{message}</p>
+      <button onClick={onDismiss} className="text-red-400 hover:text-red-600 dark:hover:text-red-300">×</button>
     </div>
-  )
-}
-
-function SocialButton({ children }) {
-  return (
-    <button type="button" className="flex-1 py-3 border-[1.5px] border-slate-200 rounded-[10px] flex items-center justify-center hover:bg-slate-50 transition-colors">
-      <span className="font-bold text-slate-700">{children}</span>
-    </button>
   )
 }
 
@@ -76,10 +68,10 @@ function Login() {
   }
 
   return (
-    <div className="flex min-h-screen w-full bg-white font-sans">
+    <div className="flex flex-col md:flex-row min-h-screen w-full bg-slate-50 dark:bg-slate-900 font-sans">
 
-      {/* Left Panel - Branding (Sticky) */}
-      <div className="hidden md:flex flex-col justify-between w-[50%] max-w-[620px] h-screen sticky top-0 shrink-0 p-12 lg:p-16 relative overflow-hidden text-white">
+      {/* Left Panel - Branding (Sticky on Desktop, Header on Mobile) */}
+      <div className="md:flex flex-col justify-end md:justify-between w-full md:w-[50%] md:max-w-[620px] h-64 md:h-screen md:sticky top-0 shrink-0 p-8 md:p-12 lg:p-16 relative overflow-hidden text-white">
         {/* Background Image */}
         <div
           className="absolute inset-0 bg-cover bg-center"
@@ -87,43 +79,46 @@ function Login() {
         />
         {/* Fallback gradient if image fails/is missing */}
         <div className="absolute inset-0 bg-gradient-to-br from-[#5BE9FF] via-[#7B6FFF] to-[#2D0FA6] opacity-0 mix-blend-overlay" />
+        
+        {/* Mobile gradient overlay for text readability */}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent md:hidden" />
 
         {/* Content overlay */}
-        <div className="relative z-10 flex flex-col h-full justify-between">
-          <div className="text-4xl font-bold">✳</div>
+        <div className="relative z-10 flex flex-col h-full justify-end md:justify-between">
+          <div className="text-4xl font-bold hidden md:block">✳</div>
 
-          <div className="mt-auto pb-4">
-            <p className="text-base font-medium text-white/90 mb-3">Chatify is secured</p>
-            <h1 className="font-serif text-4xl lg:text-5xl leading-tight text-white">
-              {mode === 'login' ? 'Welcome back to your personal hub' : 'Get access your personal hub for clarity and productivity'}
+          <div className="mt-auto md:pb-4">
+            <div className="text-3xl font-bold md:hidden mb-2 text-primary-400">✳</div>
+            <p className="text-sm md:text-base font-medium text-white/90 mb-2 md:mb-3">Chatify is secured</p>
+            <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl leading-tight text-white">
+              {mode === 'login' ? 'Welcome back to your personal hub' : 'Get access your personal hub for clarity'}
             </h1>
           </div>
         </div>
       </div>
 
       {/* Right Panel - Form (Scrollable) */}
-      <div className="flex-1 flex flex-col justify-center px-6 py-12 sm:px-12 lg:px-20 bg-white">
+      <div className="flex-1 flex flex-col justify-center px-6 py-10 sm:px-12 lg:px-20 bg-white dark:bg-slate-900 rounded-t-[32px] md:rounded-none -mt-8 md:mt-0 relative z-20 shadow-[0_-8px_30px_rgba(0,0,0,0.05)] md:shadow-none">
         <div className="w-full max-w-md mx-auto animate-fade-in">
-          <div className="text-primary-500 text-3xl font-bold mb-6 md:hidden">✳</div>
-
-          <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-2">
-            {mode === 'login' ? 'Welcome back' : 'Create an account'}
+          
+          <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white mb-2">
+            {mode === 'login' ? 'Welcome back' : 'Create account'}
           </h2>
-          <p className="text-base text-muted mb-10">
+          <p className="text-base text-slate-500 dark:text-slate-400 mb-8 md:mb-10">
             {mode === 'login'
               ? 'Enter your details to access your account.'
-              : 'Access your tasks, notes, and projects anytime, anywhere.'}
+              : 'Access your secure messaging anytime, anywhere.'}
           </p>
 
           {regSuccess && (
-            <div className="mb-6 rounded-[10px] bg-green-50 border border-green-100 px-4 py-3 text-sm text-green-700">
+            <div className="mb-6 rounded-[10px] bg-green-50 dark:bg-green-500/10 border border-green-100 dark:border-green-500/20 px-4 py-3 text-sm text-green-700 dark:text-green-400">
               Account created successfully! Please sign in.
             </div>
           )}
 
           <ErrorBanner message={error} onDismiss={clearError} />
 
-          <form onSubmit={mode === 'login' ? handleLogin : handleRegister} className="space-y-6" noValidate>
+          <form onSubmit={mode === 'login' ? handleLogin : handleRegister} className="space-y-5 md:space-y-6" noValidate>
 
             {mode === 'register' && (
               <div className="animate-fade-in">
@@ -169,7 +164,7 @@ function Login() {
                 <button
                   type="button"
                   onClick={() => setShowPass(!showPass)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 focus:outline-none"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -182,7 +177,7 @@ function Login() {
             <button
               type="submit"
               disabled={isLoading || !username || !password}
-              className="w-full py-4 mt-4 bg-primary-600 hover:bg-primary-600 text-white font-semibold rounded-[10px] transition-colors disabled:opacity-50 text-lg shadow-sm"
+              className="w-full py-3.5 md:py-4 mt-2 md:mt-4 bg-primary-600 hover:bg-primary-500 text-white font-semibold rounded-[10px] transition-colors disabled:opacity-50 text-base md:text-lg shadow-sm"
             >
               {isLoading
                 ? (mode === 'login' ? 'Signing in...' : 'Creating account...')
@@ -191,11 +186,11 @@ function Login() {
           </form>
 
           {/* Footer Link */}
-          <p className="text-center text-sm text-slate-500 mt-8">
+          <p className="text-center text-sm text-slate-500 dark:text-slate-400 mt-8">
             {mode === 'login' ? "Don't have an account?" : "Already have an account?"}{' '}
             <button
               onClick={() => switchMode(mode === 'login' ? 'register' : 'login')}
-              className="font-semibold text-primary-500 hover:text-primary-600 focus:outline-none"
+              className="font-semibold text-primary-500 hover:text-primary-400 focus:outline-none"
             >
               {mode === 'login' ? 'Sign up' : 'Sign in'}
             </button>
@@ -208,3 +203,4 @@ function Login() {
 }
 
 export default Login
+

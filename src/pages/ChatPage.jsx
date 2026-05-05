@@ -189,7 +189,7 @@ export default function ChatPage() {
       <ToastContainer />
 
       {/* --- LEFT SIDEBAR --- */}
-      <aside className="w-[320px] shrink-0 sidebar-bg flex flex-col h-full border-r">
+      <aside className={`w-full md:w-[320px] shrink-0 sidebar-bg flex flex-col h-full border-r ${activeContactId ? 'hidden md:flex' : 'flex'}`}>
 
         {/* Sidebar Header (Current User) */}
         <div className="p-5 flex items-center justify-between border-b border-white/5">
@@ -276,13 +276,21 @@ export default function ChatPage() {
       </aside>
 
       {/* --- MAIN CHAT AREA --- */}
-      <main className="flex-1 flex flex-col h-full chat-bg">
+      <main className={`flex-1 flex flex-col h-full chat-bg ${activeContactId ? 'flex' : 'hidden md:flex'}`}>
         {activeContactId ? (
           <>
             {/* Chat Topbar */}
-            <header className="chat-header h-[72px] px-6 flex items-center justify-between shrink-0 shadow-sm z-10 border-b">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary-600 flex items-center justify-center text-white font-bold">
+            <header className="chat-header h-[72px] px-4 md:px-6 flex items-center justify-between shrink-0 shadow-sm z-10 border-b">
+              <div className="flex items-center gap-2 md:gap-3">
+                <button
+                  className="md:hidden p-2 -ml-2 text-slate-400 hover:text-slate-600 transition-colors"
+                  onClick={() => setActiveContactId(null)}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <div className="w-10 h-10 shrink-0 rounded-full bg-primary-600 flex items-center justify-center text-white font-bold">
                   {(activeContact?.display_name || activeContact?.username || 'U').substring(0, 2).toUpperCase()}
                 </div>
                 <div>
