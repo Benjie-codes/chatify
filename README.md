@@ -22,6 +22,13 @@ WhisperBox employs robust end-to-end encryption to ensure that messages and meta
 4. **Distribution**: The server receives the opaque payload and routes it to the intended recipient(s). The server cannot decrypt the message as it lacks the cryptographic keys.
 5. **Decryption**: The recipient receives the encrypted payload and decrypts it locally using the shared session key and the provided IV to recover the plaintext message.
 
+### Media Sharing Flow
+
+1. **Local Encryption**: When a user selects a file, it is read into memory and encrypted locally using a newly generated 256-bit AES-GCM key and IV via the Web Crypto API.
+2. **Opaque Upload**: The encrypted binary blob is uploaded to a public CDN (Cloudinary) as raw data. The CDN only hosts scrambled bytes and never sees the plaintext file.
+3. **Key Transmission**: The `fileUrl`, `fileKey`, `iv`, and metadata are packaged into a JSON payload. This payload is then encrypted and sent through the standard chat session WebSocket flow.
+4. **Local Decryption**: The recipient decrypts the chat message, downloads the opaque blob from the CDN URL, decrypts it using the securely transmitted key and IV, and generates a secure local Object URL for display.
+
 ## Key Management Explanation
 
 - **Key Generation**: Cryptographic key pairs are generated securely on the client side utilizing the Web Crypto API.
@@ -37,6 +44,5 @@ WhisperBox employs robust end-to-end encryption to ensure that messages and meta
 
 ## Known Limitations
 
-- **Media Implementation Limitations**: WhisperBox currently faces technical limitations in handling rich media sharing. While the architecture successfully supports transmitting decryption metadata (keys and IVs) securely over the WebSocket channel, the actual processing of large encrypted media files via a public CDN remains constrained. Encrypting and decrypting large binary files entirely on the client side introduces significant memory overhead and performance bottlenecks, making seamless media sharing challenging to achieve with the current browser constraints.
 - **Multi-Device Support**: Synchronizing E2EE keys and message history across multiple devices for a single user is currently unsupported, as it requires a complex mechanism for securely bridging trust and transferring private keys between devices.
 - **Offline Messaging**: Securely queueing and delivering messages to offline users introduces challenges related to the storage of encrypted payloads on the server and ensuring forward secrecy for messages that have not yet been delivered.
