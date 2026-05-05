@@ -193,10 +193,10 @@ class SocketService {
       return
     }
 
-    const eventName = data.event || data.type || data.action || 'message'
+    const eventName = data.event || data.type || data.action
 
     if (!eventName) {
-      console.warn('[SocketService] frame missing event/type field:', data)
+      // Silently drop frames with no recognizable event name (e.g. heartbeats)
       return
     }
 

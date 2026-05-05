@@ -8,7 +8,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10_000,
+  timeout: 30_000,
 })
 
 // SECURITY HARDENING: Reject any non-HTTPS requests (except localhost for dev)

@@ -114,9 +114,7 @@ export async function decryptMessage(payload, myPrivateKey, isSender) {
     )
 
     // 5. Decode and return
-    const decryptedText = bufferToString(plaintextBuffer)
-    console.log('Decryption result:', decryptedText)
-    return decryptedText
+    return bufferToString(plaintextBuffer)
   } catch (error) {
     console.error('[messageCrypto] Decryption failed:', error)
     return null

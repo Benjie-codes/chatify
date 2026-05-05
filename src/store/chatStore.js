@@ -100,6 +100,31 @@ const useChatStore = create((set, get) => ({
   })),
 
   /**
+   * Confirm an optimistic message: replace the most recent 'sending'/'sent' temp message
+   * in a conversation with the real backend-confirmed message. Used when the backend
+   * echoes back our own sent message so we don't render duplicates.
+   */
+  confirmOptimisticMessage: (conversationId, confirmedMessage) => set((state) => {
+    const thread = state.conversations[conversationId] || []
+    // Find the most recent temp message that matches the decrypted text (same content)
+    const tempIdx = [...thread].reverse().findIndex(
+      m => (m.status === 'sending' || m.status === 'sent') &&
+           m.decryptedText === confirmedMessage.decryptedText
+    )
+    if (tempIdx === -1) {
+      // No matching optimistic message — just add normally
+      const updatedThread = [...thread, confirmedMessage].sort(
+        (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      )
+      return { conversations: { ...state.conversations, [conversationId]: updatedThread } }
+    }
+    // Replace the optimistic message with the confirmed one
+    const realIdx = thread.length - 1 - tempIdx
+    const updatedThread = thread.map((m, i) => i === realIdx ? { ...m, ...confirmedMessage } : m)
+    return { conversations: { ...state.conversations, [conversationId]: updatedThread } }
+  }),
+
+  /**
    * Clear everything on logout.
    */
   clearChat: () => set({ conversations: {}, activeContactId: null })

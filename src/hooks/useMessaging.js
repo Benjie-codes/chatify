@@ -14,6 +14,7 @@ export function useMessaging() {
   const myPublicKey = useKeyStore((s) => s.publicKey)
 
   const addMessage = useChatStore((s) => s.addMessage)
+  const confirmOptimisticMessage = useChatStore((s) => s.confirmOptimisticMessage)
   const updateMessageStatus = useChatStore((s) => s.updateMessageStatus)
   const setContacts = useChatStore((s) => s.setContacts)
   const setConversationHistory = useChatStore((s) => s.setConversationHistory)
@@ -37,7 +38,9 @@ export function useMessaging() {
   const loadConversations = useCallback(async () => {
     try {
       const { data } = await messagesApi.getConversations()
-      setContacts(data)
+      // ConversationSummary returns user_id (not id) — normalize to id so the rest of the UI works
+      const normalized = data.map(c => ({ ...c, id: c.user_id }))
+      setContacts(normalized)
     } catch (err) {
       console.error('[useMessaging] Failed to load conversations', err)
     }
@@ -60,7 +63,7 @@ export function useMessaging() {
           return null
         }
 
-        const isSender = msg.from_user_id === user.id
+        const isSender = String(msg.from_user_id) === String(user.id)
         const decryptedText = await decryptMessage(parsedPayload, myPrivateKey, isSender)
 
         return {
@@ -118,11 +121,19 @@ export function useMessaging() {
       // 2. Encrypt the payload
       const payload = await encryptMessage(sanitizedText, recipientPublicKey, myPublicKey)
 
-      // 3. Send via REST API for guaranteed delivery (backend will broadcast to recipient via WS)
-      await messagesApi.sendMessage({
-        to_user_id: recipientId,
-        payload
-      })
+      // 3a. Prefer WebSocket delivery (real-time) — backend broadcasts to recipient immediately
+      //     WS frame format per OpenAPI spec: { event, to, payload }
+      if (socketService.status === 'connected') {
+        const sent = socketService.send({ event: 'message.send', to: recipientId, payload })
+        if (sent) {
+          updateMessageStatus(recipientId, messageId, 'sent')
+          return
+        }
+      }
+
+      // 3b. REST fallback — backend queues and delivers on recipient's next reconnect
+      //     SendMessageRequest schema: { to: uuid, payload: EncryptedPayload }
+      await messagesApi.sendMessage({ to: recipientId, payload })
       updateMessageStatus(recipientId, messageId, 'sent')
     } catch (error) {
       console.error('[useMessaging] Error sending message:', error)
@@ -173,8 +184,13 @@ export function useMessaging() {
       const isSender = String(fromUserId) === String(user.id)
       const conversationId = isSender ? String(toUserId) : String(fromUserId)
 
-      // Decrypt
-      const decryptedText = await decryptMessage(parsedPayload, myPrivateKey, isSender)
+      if (isSender) {
+        // The backend echoes our own sent frame back to us.
+        // We already rendered it optimistically, so discard the echo.
+        return
+      }
+
+      const decryptedText = await decryptMessage(parsedPayload, myPrivateKey, false)
 
       const messageObj = {
         id: actualData.id || actualData.message_id || parsedPayload.id || uuidv4(),
@@ -194,11 +210,8 @@ export function useMessaging() {
       }
     }
 
-    // Bind all possible variants
+    // Only bind documented events per the WhisperBox OpenAPI spec
     socketService.on('message.receive', handleIncomingMessage)
-    socketService.on('message.new', handleIncomingMessage)
-    socketService.on('message', handleIncomingMessage)
-
     socketService.on('user.online', handleOnline)
     socketService.on('user.offline', handleOffline)
     socketService.on('presence', (data) => {
@@ -208,8 +221,6 @@ export function useMessaging() {
 
     return () => {
       socketService.off('message.receive', handleIncomingMessage)
-      socketService.off('message.new', handleIncomingMessage)
-      socketService.off('message', handleIncomingMessage)
       socketService.off('user.online', handleOnline)
       socketService.off('user.offline', handleOffline)
       socketService.off('presence', handlePresence)
