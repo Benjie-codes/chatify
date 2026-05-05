@@ -29,7 +29,7 @@ export function MessageBubble({
             px-4 py-3 
             ${isSent 
               ? 'bg-primary-500 text-white rounded-2xl rounded-br-[4px]' 
-              : 'bg-primary-50 text-slate-900 rounded-2xl rounded-bl-[4px]'
+              : 'bubble-received rounded-2xl rounded-bl-[4px]'
             }
           `}
         >
@@ -55,9 +55,9 @@ export function MessageBubble({
           
           <div className="flex items-baseline gap-1.5">
             {!isSent && (
-              <span className="text-xs font-medium text-slate-700">{sender}</span>
+              <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{sender}</span>
             )}
-            <span className="text-[11px] text-slate-400">{displayTime}</span>
+            <span className="text-[11px] text-slate-400 dark:text-slate-500">{displayTime}</span>
           </div>
         </div>
 

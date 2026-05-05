@@ -33,7 +33,24 @@ export default function ChatPage() {
   const [searchResults, setSearchResults] = useState([])
   const [isSearching, setIsSearching] = useState(false)
   const [isSecure, setIsSecure] = useState(false)
+  const [isDark, setIsDark] = useState(() => {
+    // Initialize from localStorage, fallback to system preference
+    const saved = localStorage.getItem('chatify-theme')
+    if (saved) return saved === 'dark'
+    return window.matchMedia('(prefers-color-scheme: dark)').matches
+  })
   const messagesEndRef = useRef(null)
+
+  // Apply / remove the 'dark' class on the HTML root whenever isDark changes
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark')
+      localStorage.setItem('chatify-theme', 'dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+      localStorage.setItem('chatify-theme', 'light')
+    }
+  }, [isDark])
 
   // Filter contacts locally when not searching the backend
   const filteredContacts = contacts.filter(c => 
@@ -127,11 +144,11 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-chatbg font-sans">
+    <div className="flex h-screen overflow-hidden chat-bg font-sans">
       <ToastContainer />
 
       {/* --- LEFT SIDEBAR --- */}
-      <aside className="w-[320px] shrink-0 bg-sidebar flex flex-col h-full border-r border-slate-800">
+      <aside className="w-[320px] shrink-0 sidebar-bg flex flex-col h-full border-r">
         
         {/* Sidebar Header (Current User) */}
         <div className="p-5 flex items-center justify-between border-b border-white/5">
@@ -171,7 +188,7 @@ export default function ChatPage() {
               placeholder="Search users..." 
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full bg-[#2A2442] text-white text-sm rounded-lg py-2.5 pl-10 pr-4 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              className="w-full bg-white/5 border border-white/5 text-white text-sm rounded-lg py-2.5 pl-10 pr-4 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-primary-500 transition-all"
             />
             <svg className="absolute left-3.5 top-3 w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -218,18 +235,18 @@ export default function ChatPage() {
       </aside>
 
       {/* --- MAIN CHAT AREA --- */}
-      <main className="flex-1 flex flex-col h-full bg-white md:bg-chatbg">
+      <main className="flex-1 flex flex-col h-full chat-bg">
         {activeContactId ? (
           <>
             {/* Chat Topbar */}
-            <header className="h-[72px] bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 shadow-sm z-10">
+            <header className="chat-header h-[72px] px-6 flex items-center justify-between shrink-0 shadow-sm z-10 border-b">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-primary-600 flex items-center justify-center text-white font-bold">
                   {(activeContact?.display_name || activeContact?.username || 'U').substring(0,2).toUpperCase()}
                 </div>
                 <div>
-                  <h2 className="text-slate-900 font-semibold text-[15px]">{activeContact?.display_name || activeContact?.username}</h2>
-                  <p className="text-slate-500 text-[12px]">{activeContact?.is_online ? 'Online' : 'Offline'}</p>
+                  <h2 className="font-semibold text-[15px]" style={{color:'var(--color-header-text)'}}>{activeContact?.display_name || activeContact?.username}</h2>
+                  <p className="text-[12px]" style={{color:'var(--color-subtext)'}}>{activeContact?.is_online ? 'Online' : 'Offline'}</p>
                 </div>
               </div>
 
@@ -238,10 +255,28 @@ export default function ChatPage() {
                 {/* <button className="hidden sm:block px-4 py-1.5 border border-slate-200 text-slate-600 text-sm font-medium rounded-full hover:bg-slate-50 transition-colors">
                   Invite
                 </button> */}
-                <button className="text-slate-400 hover:text-slate-600">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                {/* Dark / Light mode toggle */}
+                <button
+                  id="theme-toggle"
+                  onClick={() => setIsDark(prev => !prev)}
+                  title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+                  className="relative w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-white/10"
+                >
+                  {/* Sun icon — shown in dark mode */}
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className={`w-5 h-5 absolute transition-all duration-300 ${isDark ? 'opacity-100 rotate-0 scale-100' : 'opacity-0 rotate-90 scale-50'}`}
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
+                  </svg>
+                  {/* Moon icon — shown in light mode */}
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className={`w-5 h-5 absolute transition-all duration-300 ${!isDark ? 'opacity-100 rotate-0 scale-100' : 'opacity-0 -rotate-90 scale-50'}`}
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                   </svg>
                 </button>
               </div>
@@ -269,8 +304,8 @@ export default function ChatPage() {
             {/* <TypingIndicator names={['Rachel']} /> */}
 
             {/* Input Bar */}
-            <div className="p-4 bg-white border-t border-slate-200 shrink-0">
-              <form onSubmit={handleSend} className="flex items-center gap-3 bg-[#F4F5F8] px-2 py-2 rounded-full border border-slate-200/60">
+            <div className="chat-input-bar p-4 shrink-0 border-t">
+              <form onSubmit={handleSend} className="chat-input-pill flex items-center gap-3 px-2 py-2 rounded-full border">
                 <button type="button" className="p-2 text-slate-400 hover:text-slate-600 transition-colors">
                   <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
@@ -282,7 +317,7 @@ export default function ChatPage() {
                   value={inputText}
                   onChange={e => setInputText(e.target.value)}
                   placeholder="Write a message"
-                  className="flex-1 bg-transparent border-none focus:outline-none text-sm text-slate-800 placeholder:text-slate-500"
+                  className="chat-input-field flex-1 border-none focus:outline-none text-sm placeholder:text-slate-400"
                 />
 
                 <button type="button" className="p-2 text-slate-400 hover:text-slate-600 transition-colors">

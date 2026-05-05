@@ -23,7 +23,7 @@ export default {
           950: '#020617',
         },
         // Layout colors
-        sidebar: '#1E1A2E',
+        sidebar: '#0f172a',
         chatbg: '#F7F8FC',
         
         // Muted gray

@@ -5,13 +5,43 @@
 @tailwind utilities;
 
 @layer base {
+  /* ── Light mode (default) ─────────────────────────────────────── */
   :root {
+    color-scheme: light;
+    --color-bg:           #F7F8FC;
+    --color-sidebar:      #0f172a;
+    --color-sidebar-text: #ffffff;
+    --color-header-bg:    #ffffff;
+    --color-header-border:#e2e8f0;
+    --color-header-text:  #0f172a;
+    --color-subtext:      #64748b;
+    --color-input-bg:     #F4F5F8;
+    --color-input-border: rgba(226,232,240,0.6);
+    --color-bubble-in-bg: #EEF2F7;
+    --color-bubble-in-tx: #0f172a;
+  }
+
+  /* ── Dark mode ───────────────────────────────────────────────── */
+  .dark {
     color-scheme: dark;
+    --color-bg:           #0f172a;
+    --color-sidebar:      #0f172a;
+    --color-sidebar-text: #ffffff;
+    --color-header-bg:    #1e293b;
+    --color-header-border:#334155;
+    --color-header-text:  #f1f5f9;
+    --color-subtext:      #94a3b8;
+    --color-input-bg:     #1e293b;
+    --color-input-border: rgba(51,65,85,0.8);
+    --color-bubble-in-bg: #1e293b;
+    --color-bubble-in-tx: #e2e8f0;
   }
 
   body {
-    @apply bg-surface-950 text-slate-100 font-sans antialiased;
+    background-color: var(--color-bg);
+    @apply text-slate-900 dark:text-slate-100 font-sans antialiased;
     @apply selection:bg-primary-500/30 selection:text-primary-200;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 
   * {
@@ -19,47 +49,56 @@
   }
 
   /* Scrollbar styling */
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    @apply bg-transparent;
-  }
-  ::-webkit-scrollbar-thumb {
-    @apply bg-white/10 rounded-full;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    @apply bg-white/20;
-  }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { @apply bg-transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-black/10 dark:bg-white/10 rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-black/20 dark:bg-white/20; }
 }
 
 @layer components {
-  /* Glass card */
-  .glass {
-    @apply bg-white/5 backdrop-blur-md border border-white/10 shadow-glass;
+  /* ── Structural layout panels ────────────────────────────────── */
+  .chat-bg    { background-color: var(--color-bg); transition: background-color 0.2s ease; }
+  .sidebar-bg {
+    background-color: var(--color-sidebar);
+    border-color:     rgba(255, 255, 255, 0.05);
+    transition: background-color 0.2s ease;
+  }
+  .chat-header {
+    background-color: var(--color-header-bg);
+    border-color:     var(--color-header-border);
+    color:            var(--color-header-text);
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+  }
+  .chat-input-bar {
+    background-color: var(--color-header-bg);
+    border-color:     var(--color-header-border);
+    transition: background-color 0.2s ease;
+  }
+  .chat-input-pill {
+    background-color: var(--color-input-bg);
+    border-color:     var(--color-input-border);
+    transition: background-color 0.2s ease;
+  }
+  .chat-input-field {
+    color: var(--color-header-text);
+    background: transparent;
+    transition: color 0.2s ease;
+  }
+  .bubble-received {
+    background-color: var(--color-bubble-in-bg);
+    color:            var(--color-bubble-in-tx);
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 
-  /* Button base */
-  .btn {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-medium text-sm
-           transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2
-           focus:ring-offset-surface-950 disabled:opacity-50 disabled:cursor-not-allowed;
-  }
-  .btn-primary {
-    @apply btn bg-primary-600 hover:bg-primary-500 text-white focus:ring-primary-500 hover:shadow-glow-primary;
-  }
-  .btn-ghost {
-    @apply btn bg-transparent hover:bg-white/5 text-slate-300 hover:text-white focus:ring-white/20;
-  }
-  .btn-danger {
-    @apply btn bg-danger-600 hover:bg-danger-500 text-white focus:ring-danger-500;
-  }
+  /* Glass card */
+  .glass { @apply bg-white/5 backdrop-blur-md border border-white/10 shadow-glass; }
+
+  /* Buttons */
+  .btn { @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed; }
+  .btn-primary { @apply btn bg-primary-600 hover:bg-primary-500 text-white focus:ring-primary-500 hover:shadow-glow-primary; }
+  .btn-ghost   { @apply btn bg-transparent hover:bg-white/5 text-slate-300 hover:text-white focus:ring-white/20; }
+  .btn-danger  { @apply btn bg-danger-600 hover:bg-danger-500 text-white focus:ring-danger-500; }
 
   /* Input */
-  .input {
-    @apply w-full bg-surface-50 border-2 border-primary-600 rounded-xl px-4 py-2.5 text-sm text-slate-900
-           placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-transparent
-           transition-all duration-200;
-  }
+  .input { @apply w-full bg-surface-50 border-2 border-primary-600 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-transparent transition-all duration-200; }
 }
