@@ -8,6 +8,7 @@
  */
 
 import { create } from 'zustand'
+import { unwrapPrivateKey, importPublicKey } from '../crypto/keyManager'
 
 const useKeyStore = create((set, get) => ({
   // ─── State ─────────────────────────────────────────────────────────────────
@@ -24,12 +25,23 @@ const useKeyStore = create((set, get) => ({
   // ─── Actions ──────────────────────────────────────────────────────────────
 
   /**
-   * Called after successfully unwrapping the private key on login.
+   * Initialize the keys from the login response.
+   * Runs after login, calls unwrapPrivateKey, and sets keys in memory.
    *
-   * @param {CryptoKey} privateKey
-   * @param {CryptoKey} publicKey
+   * @param {Object} loginResponse 
+   * @param {string} password 
    */
-  setKeys: (privateKey, publicKey) => {
+  initKeys: async (loginResponse, password) => {
+    const { wrapped_private_key, pbkdf2_salt, public_key } = loginResponse.user
+    
+    const privateKey = await unwrapPrivateKey(
+      wrapped_private_key, 
+      password, 
+      pbkdf2_salt
+    )
+    
+    const publicKey = await importPublicKey(public_key)
+
     set({ privateKey, publicKey, isReady: true })
   },
 

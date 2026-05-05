@@ -10,6 +10,11 @@ const useChatStore = create((set, get) => ({
   // Current selected contact ID in the UI
   activeContactId: null,
 
+  // Contacts populated from the API
+  contacts: [],
+
+  setContacts: (contacts) => set({ contacts }),
+
   setActiveContactId: (id) => set({ activeContactId: id }),
 
   /**

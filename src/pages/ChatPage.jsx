@@ -11,6 +11,7 @@ import useKeyStore from '../store/keyStore'
 import useChatStore from '../store/chatStore'
 import { useMessaging } from '../hooks/useMessaging'
 import { useAuth } from '../hooks/useAuth'
+import { searchUsers } from '../services/api'
 
 /**
  * SECURITY HARDENING CHECKLIST:
@@ -25,54 +26,77 @@ import { useAuth } from '../hooks/useAuth'
 export default function ChatPage() {
   const navigate = useNavigate()
   const { logout } = useAuth()
-  const { sendMessage, getContactPublicKey } = useMessaging()
+  const { sendMessage, getContactPublicKey, loadConversations, loadHistory } = useMessaging()
   
   const user = useAuthStore(s => s.user)
   const isKeyReady = useKeyStore(s => s.isReady)
   const isConnected = true // Mock connection status for now; in reality get from connectionStore
 
   const conversations = useChatStore(s => s.conversations)
+  const contacts = useChatStore(s => s.contacts)
   const activeContactId = useChatStore(s => s.activeContactId)
   const setActiveContactId = useChatStore(s => s.setActiveContactId)
+  const setContacts = useChatStore(s => s.setContacts)
   
   const [inputText, setInputText] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [isSearching, setIsSearching] = useState(false)
   const [isSecure, setIsSecure] = useState(false)
   const messagesEndRef = useRef(null)
 
-  // MOCK DATA for Contacts (until we wire up a real contacts API)
-  const mockContacts = [
-    { id: '1', name: 'Rachel Warren', preview: 'We can go to the bar we were last...', time: '3 hours', unread: 0, online: true },
-    { id: '2', name: 'Kevin Thomson', preview: 'This is a great idea! We will start...', time: '21 min', unread: 0, online: false },
-    { id: '3', name: 'Dmitry Shirshov', preview: 'Hi everyone! I am new here...', time: '8 min', unread: 2, online: true },
-    { id: '4', name: 'Helga Kallstrom', preview: 'I am very happy to introduce it!', time: '3 hours', unread: 0, online: false },
-    { id: '5', name: 'Hugh Reynolds', preview: 'Sup bro! Can you call me pls?', time: 'Yesterday', unread: 0, online: false },
-  ]
-
-  // Filter contacts by search
-  const filteredContacts = mockContacts.filter(c => 
-    c.name.toLowerCase().includes(searchQuery.toLowerCase())
+  // Filter contacts locally when not searching the backend
+  const filteredContacts = contacts.filter(c => 
+    (c.display_name || c.username).toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const activeContact = mockContacts.find(c => c.id === activeContactId)
+  const activeContact = contacts.find(c => c.id === activeContactId) || searchResults.find(c => c.id === activeContactId)
+
+  // Debounced API Search
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([])
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearching(true)
+      try {
+        const { data } = await searchUsers(searchQuery)
+        setSearchResults(data)
+      } catch (err) {
+        console.error('Failed to search users:', err)
+      } finally {
+        setIsSearching(false)
+      }
+    }, 300)
+
+    return () => clearTimeout(timer)
+  }, [searchQuery])
 
   // Auto-scroll to bottom
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
 
+  // Initial load of conversations
+  useEffect(() => {
+    loadConversations()
+  }, [loadConversations])
+
   useEffect(() => {
     scrollToBottom()
   }, [conversations, activeContactId])
 
-  // Check E2EE key availability when active contact changes
+  // Load history and check E2EE key availability when active contact changes
   useEffect(() => {
     if (activeContactId) {
+      loadHistory(activeContactId)
       getContactPublicKey(activeContactId)
         .then(() => setIsSecure(true))
         .catch(() => setIsSecure(false))
     }
-  }, [activeContactId, getContactPublicKey])
+  }, [activeContactId, getContactPublicKey, loadHistory])
 
   const handleSend = async (e) => {
     e.preventDefault()
@@ -91,6 +115,15 @@ export default function ChatPage() {
     } catch (err) {
       useToastStore.getState().addToast('Failed to send — please retry', 'red')
     }
+  }
+
+  const handleSelectContact = (contact) => {
+    // Add to local contacts if not present so it shows up in the normal list
+    if (!contacts.find(c => c.id === contact.id)) {
+      setContacts([contact, ...contacts])
+    }
+    setActiveContactId(contact.id)
+    setSearchQuery('')
   }
 
   // Handle Full-Screen Loading State
@@ -145,7 +178,7 @@ export default function ChatPage() {
           <div className="relative">
             <input 
               type="text" 
-              placeholder="Search" 
+              placeholder="Search users..." 
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="w-full bg-[#2A2442] text-white text-sm rounded-lg py-2.5 pl-10 pr-4 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
@@ -158,18 +191,39 @@ export default function ChatPage() {
 
         {/* Contacts List */}
         <div className="flex-1 overflow-y-auto scrollbar-hide py-2">
-          {filteredContacts.map(contact => (
-            <ContactItem 
-              key={contact.id}
-              name={contact.name}
-              preview={contact.preview}
-              time={contact.time}
-              unreadCount={contact.unread}
-              isOnline={contact.online}
-              isActive={activeContactId === contact.id}
-              onClick={() => setActiveContactId(contact.id)}
-            />
-          ))}
+          {searchQuery.trim() ? (
+            isSearching ? (
+              <div className="p-4 text-sm text-slate-400 text-center animate-pulse">Searching global network...</div>
+            ) : searchResults.length > 0 ? (
+              searchResults.map(contact => (
+                <ContactItem 
+                  key={contact.id}
+                  name={contact.display_name || contact.username}
+                  preview={`@${contact.username}`}
+                  time=""
+                  unreadCount={0}
+                  isOnline={contact.is_online}
+                  isActive={activeContactId === contact.id}
+                  onClick={() => handleSelectContact(contact)}
+                />
+              ))
+            ) : (
+              <div className="p-4 text-sm text-slate-500 text-center">No users found.</div>
+            )
+          ) : (
+            filteredContacts.map(contact => (
+              <ContactItem 
+                key={contact.id}
+                name={contact.display_name || contact.username}
+                preview={contact.last_message || 'Start a conversation...'}
+                time={contact.last_message_time ? new Date(contact.last_message_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                unreadCount={contact.unread_count || 0}
+                isOnline={contact.is_online}
+                isActive={activeContactId === contact.id}
+                onClick={() => handleSelectContact(contact)}
+              />
+            ))
+          )}
         </div>
       </aside>
 
@@ -181,11 +235,11 @@ export default function ChatPage() {
             <header className="h-[72px] bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 shadow-sm z-10">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-primary-600 flex items-center justify-center text-white font-bold">
-                  {activeContact?.name.substring(0,2).toUpperCase()}
+                  {(activeContact?.display_name || activeContact?.username || 'U').substring(0,2).toUpperCase()}
                 </div>
                 <div>
-                  <h2 className="text-slate-900 font-semibold text-[15px]">{activeContact?.name}</h2>
-                  <p className="text-slate-500 text-[12px]">{activeContact?.online ? 'Online' : 'Offline'}</p>
+                  <h2 className="text-slate-900 font-semibold text-[15px]">{activeContact?.display_name || activeContact?.username}</h2>
+                  <p className="text-slate-500 text-[12px]">{activeContact?.is_online ? 'Online' : 'Offline'}</p>
                 </div>
               </div>
 
@@ -205,16 +259,16 @@ export default function ChatPage() {
 
             {/* Message Timeline */}
             <div className="flex-1 overflow-y-auto p-6 scrollbar-hide">
-              <SystemMessage text={`You started a secure conversation with ${activeContact?.name}`} />
+              <SystemMessage text={`You started a secure conversation with ${activeContact?.display_name || activeContact?.username}`} />
               
               {conversations[activeContactId]?.map((msg, idx) => (
                 <MessageBubble 
                   key={msg.id || idx}
                   text={msg.decryptedText}
-                  sender={msg.senderId === user.id ? user.display_name : activeContact?.name}
+                  sender={msg.senderId === user.id ? user.display_name : (activeContact?.display_name || activeContact?.username)}
                   time={new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   isSent={msg.senderId === user.id}
-                  avatarInitials={(msg.senderId === user.id ? user.display_name : activeContact?.name).substring(0, 2).toUpperCase()}
+                  avatarInitials={(msg.senderId === user.id ? user.display_name : (activeContact?.display_name || activeContact?.username || 'U')).substring(0, 2).toUpperCase()}
                 />
               ))}
 

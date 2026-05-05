@@ -15,16 +15,12 @@ import socketService from '../services/socket'
 import useAuthStore from '../store/authStore'
 import useKeyStore from '../store/keyStore'
 import { parseApiError } from '../utils/errors'
-import { bufferToBase64, base64ToBuffer } from '../utils/encoding'
 import {
   generateRSAKeyPair,
   generateSalt,
-  deriveWrappingKey,
   wrapPrivateKey,
-  unwrapPrivateKey,
-  exportPublicKey,
-  importPublicKey
-} from '../crypto'
+  exportPublicKey
+} from '../crypto/keyManager'
 
 export function useAuth() {
   const [loading, setLoading] = useState(false)
@@ -35,7 +31,7 @@ export function useAuth() {
   const token       = useAuthStore((s) => s.token)
   const refreshToken = useAuthStore((s) => s.refreshToken)
   
-  const setKeys     = useKeyStore((s) => s.setKeys)
+  const initKeys    = useKeyStore((s) => s.initKeys)
   const clearKeys   = useKeyStore((s) => s.clearKeys)
 
   const navigate = useNavigate()
@@ -49,17 +45,14 @@ export function useAuth() {
       // 1. Generate RSA-OAEP keypair
       const { publicKey, privateKey } = await generateRSAKeyPair()
       
-      // 2. Generate salt and derive AES-KW wrapping key
-      const saltBuffer = generateSalt()
-      const wrappingKey = await deriveWrappingKey(password, saltBuffer)
+      // 2. Generate salt
+      const saltBase64 = generateSalt()
       
       // 3. Wrap private key
-      const wrappedKeyBuffer = await wrapPrivateKey(privateKey, wrappingKey)
+      const wrappedKeyBase64 = await wrapPrivateKey(privateKey, password, saltBase64)
       
       // 4. Export public key
-      const publicBase64 = await exportPublicKey(publicKey)
-      const wrappedKeyBase64 = bufferToBase64(wrappedKeyBuffer)
-      const saltBase64 = bufferToBase64(saltBuffer)
+      const publicBase64 = await exportPublicKey({ publicKey }) // Passed as object matching the destructured keypair
 
       // 5. Send to API
       await authApi.register({
@@ -89,25 +82,13 @@ export function useAuth() {
       // 1. Call login endpoint
       const { data } = await authApi.login({ username, password })
       
-      // 2. Extract key material
-      const { wrapped_private_key, pbkdf2_salt, public_key } = data.user
-      
-      // 3. Re-derive wrapping key
-      const saltBuffer = base64ToBuffer(pbkdf2_salt)
-      const wrappingKey = await deriveWrappingKey(password, saltBuffer)
-      
-      // 4. Unwrap private key
-      const wrappedKeyBuffer = base64ToBuffer(wrapped_private_key)
-      const privateKey = await unwrapPrivateKey(wrappedKeyBuffer, wrappingKey)
-      
-      // 5. Import public key
-      const publicKey = await importPublicKey(public_key)
-      
-      // 6. Store tokens and unwrapped keys
+      // 2. Store tokens
       storeLogin(data)
-      setKeys(privateKey, publicKey)
 
-      // 7. Open WebSocket
+      // 3. Initialize keys in memory via keyStore
+      await initKeys(data, password)
+
+      // 4. Open WebSocket
       socketService.connect(data.access_token)
 
       navigate('/chat', { replace: true })

@@ -86,6 +86,12 @@ api.interceptors.response.use(
         })
         const newToken = data.access_token
         useAuthStore.getState().setToken(newToken)
+        
+        // Reconnect WebSocket with new token
+        import('./socket').then(({ default: socketService }) => {
+          socketService.connect(newToken)
+        })
+
         processQueue(null, newToken)
         originalRequest.headers.Authorization = `Bearer ${newToken}`
         return api(originalRequest)
@@ -118,6 +124,8 @@ export const usersApi = {
   search: (q) => api.get('/users/search', { params: { q } }),
   getPublicKey: (userId) => api.get(`/users/${userId}/public-key`),
 }
+
+export const searchUsers = (query) => api.get(`/users/search?q=${encodeURIComponent(query)}`)
 
 // ─── Message / conversation endpoints ────────────────────────────────────────
 
