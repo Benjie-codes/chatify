@@ -72,13 +72,31 @@ const useChatStore = create((set, get) => ({
   /**
    * Replace the entire conversation thread (used for loading history).
    */
-  setConversationHistory: (userId, messages) => set((state) => ({
-    conversations: {
-      ...state.conversations,
-      [userId]: [...messages].sort(
-        (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-      )
+  setConversationHistory: (userId, messages) => set((state) => {
+    const existingThread = state.conversations[userId] || []
+    
+    // Create a map to deduplicate by ID, keeping optimistic messages that haven't been echoed
+    const mergedMap = new Map()
+    existingThread.forEach(m => mergedMap.set(m.id, m))
+    messages.forEach(m => mergedMap.set(m.id, m))
+
+    return {
+      conversations: {
+        ...state.conversations,
+        [userId]: Array.from(mergedMap.values()).sort(
+          (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        )
+      }
     }
+  }),
+
+  /**
+   * Update a contact's online status in real-time.
+   */
+  setContactStatus: (userId, isOnline) => set((state) => ({
+    contacts: state.contacts.map(c => 
+      String(c.id) === String(userId) ? { ...c, is_online: isOnline } : c
+    )
   })),
 
   /**

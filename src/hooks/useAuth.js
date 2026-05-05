@@ -24,15 +24,15 @@ import {
 
 export function useAuth() {
   const [loading, setLoading] = useState(false)
-  const [error, setError]     = useState(null)
+  const [error, setError] = useState(null)
 
-  const storeLogin  = useAuthStore((s) => s.login)
+  const storeLogin = useAuthStore((s) => s.login)
   const storeLogout = useAuthStore((s) => s.logout)
-  const token       = useAuthStore((s) => s.token)
+  const token = useAuthStore((s) => s.token)
   const refreshToken = useAuthStore((s) => s.refreshToken)
-  
-  const initKeys    = useKeyStore((s) => s.initKeys)
-  const clearKeys   = useKeyStore((s) => s.clearKeys)
+
+  const initKeys = useKeyStore((s) => s.initKeys)
+  const clearKeys = useKeyStore((s) => s.clearKeys)
 
   const navigate = useNavigate()
 
@@ -44,13 +44,13 @@ export function useAuth() {
     try {
       // 1. Generate RSA-OAEP keypair
       const { publicKey, privateKey } = await generateRSAKeyPair()
-      
+
       // 2. Generate salt
       const saltBase64 = generateSalt()
-      
+
       // 3. Wrap private key
       const wrappedKeyBase64 = await wrapPrivateKey(privateKey, password, saltBase64)
-      
+
       // 4. Export public key
       const publicBase64 = await exportPublicKey({ publicKey }) // Passed as object matching the destructured keypair
 
@@ -63,7 +63,7 @@ export function useAuth() {
         wrapped_private_key: wrappedKeyBase64,
         pbkdf2_salt: saltBase64,
       })
-      
+
       return true
     } catch (err) {
       setError(parseApiError(err, 'Registration failed.'))
@@ -81,7 +81,7 @@ export function useAuth() {
     try {
       // 1. Call login endpoint
       const { data } = await authApi.login({ username, password })
-      
+
       // 2. Store tokens
       storeLogin(data)
 
@@ -107,7 +107,7 @@ export function useAuth() {
     setLoading(true)
     try {
       if (refreshToken) {
-        await authApi.logout(refreshToken).catch(() => {})
+        await authApi.logout(refreshToken).catch(() => { })
       }
     } finally {
       socketService.disconnect()

@@ -193,14 +193,15 @@ class SocketService {
       return
     }
 
-    const { event: eventName, ...payload } = data
+    const eventName = data.event || data.type || data.action || 'message'
 
     if (!eventName) {
-      console.warn('[SocketService] frame missing "event" field:', data)
+      console.warn('[SocketService] frame missing event/type field:', data)
       return
     }
 
-    this._emit(eventName, payload)
+    // Emit with the original raw data so we don't accidentally strip properties
+    this._emit(eventName, data)
   }
 
   _handleError(event) {

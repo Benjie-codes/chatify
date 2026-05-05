@@ -12,7 +12,7 @@ export function useMessaging() {
   const user = useAuthStore((s) => s.user)
   const myPrivateKey = useKeyStore((s) => s.privateKey)
   const myPublicKey = useKeyStore((s) => s.publicKey)
-  
+
   const addMessage = useChatStore((s) => s.addMessage)
   const updateMessageStatus = useChatStore((s) => s.updateMessageStatus)
   const setContacts = useChatStore((s) => s.setContacts)
@@ -47,27 +47,32 @@ export function useMessaging() {
     if (!myPrivateKey || !user) return
     try {
       const { data } = await messagesApi.getMessages(userId)
-      
+
       const decryptedMessages = await Promise.all(data.map(async (msg) => {
+        let parsedPayload = msg.payload
+        if (typeof parsedPayload === 'string') {
+          try { parsedPayload = JSON.parse(parsedPayload) } catch (e) { }
+        }
+
         // Validation check as requested
-        if (!msg.payload || !msg.payload.ciphertext || !msg.payload.iv || !msg.payload.encryptedKey) {
+        if (!parsedPayload || !parsedPayload.ciphertext || !parsedPayload.iv || !parsedPayload.encryptedKey) {
           console.warn('[useMessaging] Malformed payload in history:', msg)
           return null
         }
 
         const isSender = msg.from_user_id === user.id
-        const decryptedText = await decryptMessage(msg.payload, myPrivateKey, isSender)
-        
+        const decryptedText = await decryptMessage(parsedPayload, myPrivateKey, isSender)
+
         return {
-          id: msg.id,
+          id: msg.id || uuidv4(),
           senderId: msg.from_user_id,
-          payload: msg.payload,
+          payload: parsedPayload,
           decryptedText: decryptedText ?? '[Decryption failed]',
-          timestamp: msg.created_at,
+          timestamp: msg.created_at || new Date().toISOString(),
           status: msg.delivered ? 'delivered' : 'sent'
         }
       }))
-      
+
       const validMessages = decryptedMessages.filter(Boolean)
       setConversationHistory(userId, validMessages)
     } catch (err) {
@@ -113,72 +118,103 @@ export function useMessaging() {
       // 2. Encrypt the payload
       const payload = await encryptMessage(sanitizedText, recipientPublicKey, myPublicKey)
 
-      // 3. Send via WebSocket if connected, else POST fallback
-      if (socketService.isConnected()) {
-        const sent = socketService.send({
-          event: 'message.send',
-          to: recipientId,
-          payload
-        })
-
-        if (sent) {
-          updateMessageStatus(recipientId, messageId, 'sent')
-        } else {
-          throw new Error('WebSocket send failed')
-        }
-      } else {
-        // Offline fallback
-        console.warn('[useMessaging] WS disconnected, falling back to POST /messages')
-        await messagesApi.sendMessage({
-          to_user_id: recipientId,
-          payload
-        })
-        updateMessageStatus(recipientId, messageId, 'sent')
-      }
+      // 3. Send via REST API for guaranteed delivery (backend will broadcast to recipient via WS)
+      await messagesApi.sendMessage({
+        to_user_id: recipientId,
+        payload
+      })
+      updateMessageStatus(recipientId, messageId, 'sent')
     } catch (error) {
       console.error('[useMessaging] Error sending message:', error)
       updateMessageStatus(recipientId, messageId, 'error')
     }
   }
 
-  // ─── Receiving Messages ───────────────────────────────────────────────────
+  // ─── Receiving Messages & Presence ────────────────────────────────────────
 
   useEffect(() => {
     if (!myPrivateKey || !user) return
 
-    const handleIncomingMessage = async (data) => {
-      // Validation as requested: Reject any incoming WS message missing required fields
-      if (!data.id || !data.from_user_id || !data.payload || !data.payload.ciphertext || !data.payload.iv || !data.payload.encryptedKey) {
-        console.warn('[useMessaging] Malformed message received:', data)
+    const handlePresence = (rawEventData, isOnline) => {
+      let actualData = rawEventData
+      if (rawEventData && typeof rawEventData.data === 'object') actualData = rawEventData.data
+      else if (rawEventData && typeof rawEventData.payload === 'object') actualData = rawEventData.payload
+
+      const id = actualData.user_id || actualData.id || actualData.userId || actualData.from_user_id
+      if (id) {
+        useChatStore.getState().setContactStatus(id, isOnline)
+      }
+    }
+
+    const handleOnline = (data) => handlePresence(data, true)
+    const handleOffline = (data) => handlePresence(data, false)
+
+    const handleIncomingMessage = async (rawEventData) => {
+      // Aggressively un-nest the data
+      let actualData = rawEventData
+      if (rawEventData && typeof rawEventData.data === 'object') actualData = rawEventData.data
+      else if (rawEventData && typeof rawEventData.message === 'object') actualData = rawEventData.message
+
+      // The cryptographic payload might be nested under 'payload' or flattened into the root object
+      let parsedPayload = actualData.payload || actualData
+      if (typeof parsedPayload === 'string') {
+        try { parsedPayload = JSON.parse(parsedPayload) } catch (e) { }
+      }
+
+      const fromUserId = actualData.from_user_id || actualData.sender_id || parsedPayload.from_user_id
+      const toUserId = actualData.to_user_id || actualData.receiver_id || parsedPayload.to_user_id
+
+      // Validation
+      if (!fromUserId || !parsedPayload.ciphertext || !parsedPayload.iv || !parsedPayload.encryptedKey) {
+        console.warn('[useMessaging] Ignored unreadable WS frame:', rawEventData)
         return
       }
 
-      const isSender = data.from_user_id === user.id
-      const conversationId = isSender ? data.to_user_id : data.from_user_id
+      const isSender = String(fromUserId) === String(user.id)
+      const conversationId = isSender ? String(toUserId) : String(fromUserId)
 
       // Decrypt
-      const decryptedText = await decryptMessage(data.payload, myPrivateKey, isSender)
+      const decryptedText = await decryptMessage(parsedPayload, myPrivateKey, isSender)
 
       const messageObj = {
-        id: data.id,
-        senderId: data.from_user_id,
-        payload: data.payload,
+        id: actualData.id || actualData.message_id || parsedPayload.id || uuidv4(),
+        senderId: String(fromUserId),
+        payload: parsedPayload,
         decryptedText: decryptedText ?? '[Decryption failed]',
-        timestamp: data.created_at || new Date().toISOString(),
-        status: data.delivered ? 'delivered' : 'sent'
+        timestamp: actualData.created_at || parsedPayload.created_at || new Date().toISOString(),
+        status: actualData.delivered ? 'delivered' : 'sent'
       }
 
       addMessage(conversationId, messageObj)
+
+      // Auto-refresh the sidebar if this is a new conversation
+      const currentContacts = useChatStore.getState().contacts
+      if (!currentContacts.some(c => String(c.id) === conversationId)) {
+        loadConversations()
+      }
     }
 
-    // Register listener on the socket service
+    // Bind all possible variants
     socketService.on('message.receive', handleIncomingMessage)
+    socketService.on('message.new', handleIncomingMessage)
+    socketService.on('message', handleIncomingMessage)
 
-    // Cleanup listener on unmount
+    socketService.on('user.online', handleOnline)
+    socketService.on('user.offline', handleOffline)
+    socketService.on('presence', (data) => {
+      const status = data.status || data.state
+      handlePresence(data, status === 'online' || status === true)
+    })
+
     return () => {
       socketService.off('message.receive', handleIncomingMessage)
+      socketService.off('message.new', handleIncomingMessage)
+      socketService.off('message', handleIncomingMessage)
+      socketService.off('user.online', handleOnline)
+      socketService.off('user.offline', handleOffline)
+      socketService.off('presence', handlePresence)
     }
-  }, [myPrivateKey, user, addMessage])
+  }, [myPrivateKey, user, addMessage, loadConversations])
 
   return { sendMessage, loadConversations, loadHistory, getContactPublicKey }
 }
