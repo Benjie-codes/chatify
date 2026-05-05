@@ -3,4 +3,5 @@
  * Custom hooks (useAuth, useMessages, useSocket, etc.) will be added
  * in subsequent implementation phases.
  */
-export {}
+export { useAuth } from './useAuth'
+export { useMessaging } from './useMessaging'

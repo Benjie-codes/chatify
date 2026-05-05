@@ -5,4 +5,5 @@
  * in the crypto implementation phase.
  */
 
-export * from './keygen'
+export * from './keygen.js'
+export * from './messageCrypto.js'

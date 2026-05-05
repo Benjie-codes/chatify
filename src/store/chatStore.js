@@ -1,133 +1,85 @@
-/**
- * chatStore — manages conversation list and per-conversation message history.
- *
- * Messages stored here are DECRYPTED (plaintext) objects — decryption happens
- * in the message handler before calling addMessage().
- */
-
 import { create } from 'zustand'
 
+/**
+ * chatStore — Manages message history and active conversations in-memory.
+ */
 const useChatStore = create((set, get) => ({
-  // ─── State ─────────────────────────────────────────────────────────────────
+  // Map of userId -> Array of Message objects
+  conversations: {},
 
-  /** Array of ConversationSummary objects from GET /conversations */
-  conversations: [],
+  // Current selected contact ID in the UI
+  activeContactId: null,
 
-  /**
-   * Map of userId → MessageResponse[] (decrypted, newest-last for display)
-   * @type {Record<string, Array>}
-   */
-  messages: {},
-
-  /** UUID of the currently open conversation partner */
-  activeConversationId: null,
-
-  /** Tracks online presence: Set of user UUIDs currently online */
-  onlineUsers: new Set(),
-
-  // ─── Conversation Actions ──────────────────────────────────────────────────
-
-  setConversations: (conversations) => set({ conversations }),
+  setActiveContactId: (id) => set({ activeContactId: id }),
 
   /**
-   * Upsert a conversation summary (e.g. after sending a first message).
+   * Add a new message (incoming or outgoing) to a conversation.
+   * If the conversation doesn't exist, it is created.
+   * 
+   * @param {string} userId - The other participant's ID
+   * @param {Object} message - { id, senderId, payload, decryptedText, timestamp, status }
    */
-  upsertConversation: (summary) => {
-    set((state) => {
-      const existing = state.conversations.findIndex(
-        (c) => c.user_id === summary.user_id
-      )
-      if (existing !== -1) {
-        const updated = [...state.conversations]
-        updated[existing] = summary
-        // Re-sort by last_message_at descending
-        updated.sort((a, b) => new Date(b.last_message_at) - new Date(a.last_message_at))
-        return { conversations: updated }
+  addMessage: (userId, message) => set((state) => {
+    const thread = state.conversations[userId] || []
+    
+    // Prevent duplicates (e.g. if we optimistically added it, and WS echoes it)
+    if (thread.some(m => m.id === message.id)) {
+      return {
+        conversations: {
+          ...state.conversations,
+          [userId]: thread.map(m => m.id === message.id ? { ...m, ...message } : m)
+        }
       }
-      return { conversations: [summary, ...state.conversations] }
-    })
-  },
+    }
 
-  setActiveConversation: (userId) => set({ activeConversationId: userId }),
+    // Append new message and sort by timestamp
+    const updatedThread = [...thread, message].sort(
+      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    )
 
-  // ─── Message Actions ───────────────────────────────────────────────────────
-
-  /**
-   * Bulk-load historical messages for a conversation (from GET /conversations/:id/messages).
-   * API returns newest-first; we reverse to display oldest-first.
-   *
-   * @param {string} userId - Conversation partner UUID
-   * @param {Array}  msgs   - Array of decrypted message objects
-   */
-  setMessages: (userId, msgs) => {
-    set((state) => ({
-      messages: {
-        ...state.messages,
-        [userId]: [...msgs].reverse(),
-      },
-    }))
-  },
+    return {
+      conversations: {
+        ...state.conversations,
+        [userId]: updatedThread
+      }
+    }
+  }),
 
   /**
-   * Prepend older messages (from pagination) to an existing conversation.
-   *
-   * @param {string} userId
-   * @param {Array}  olderMsgs - Already reversed to oldest-first order
+   * Update the status of an existing message (e.g. sending -> sent).
+   * 
+   * @param {string} userId - The conversation ID
+   * @param {string} messageId - The message ID
+   * @param {string} status - 'sending' | 'sent' | 'delivered' | 'error'
    */
-  prependMessages: (userId, olderMsgs) => {
-    set((state) => ({
-      messages: {
-        ...state.messages,
-        [userId]: [...olderMsgs, ...(state.messages[userId] ?? [])],
-      },
-    }))
-  },
+  updateMessageStatus: (userId, messageId, status) => set((state) => {
+    const thread = state.conversations[userId]
+    if (!thread) return state
+
+    return {
+      conversations: {
+        ...state.conversations,
+        [userId]: thread.map(m => m.id === messageId ? { ...m, status } : m)
+      }
+    }
+  }),
 
   /**
-   * Append a single new message (real-time or sent).
-   *
-   * @param {string} userId
-   * @param {object} message - Decrypted message object
+   * Replace the entire conversation thread (used for loading history).
    */
-  addMessage: (userId, message) => {
-    set((state) => ({
-      messages: {
-        ...state.messages,
-        [userId]: [...(state.messages[userId] ?? []), message],
-      },
-    }))
-  },
+  setConversationHistory: (userId, messages) => set((state) => ({
+    conversations: {
+      ...state.conversations,
+      [userId]: [...messages].sort(
+        (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      )
+    }
+  })),
 
-  getMessages: (userId) => get().messages[userId] ?? [],
-
-  // ─── Presence Actions ─────────────────────────────────────────────────────
-
-  setUserOnline: (userId) => {
-    set((state) => {
-      const next = new Set(state.onlineUsers)
-      next.add(userId)
-      return { onlineUsers: next }
-    })
-  },
-
-  setUserOffline: (userId) => {
-    set((state) => {
-      const next = new Set(state.onlineUsers)
-      next.delete(userId)
-      return { onlineUsers: next }
-    })
-  },
-
-  isUserOnline: (userId) => get().onlineUsers.has(userId),
-
-  // ─── Reset ────────────────────────────────────────────────────────────────
-  reset: () =>
-    set({
-      conversations: [],
-      messages: {},
-      activeConversationId: null,
-      onlineUsers: new Set(),
-    }),
+  /**
+   * Clear everything on logout.
+   */
+  clearChat: () => set({ conversations: {}, activeContactId: null })
 }))
 
 export default useChatStore
