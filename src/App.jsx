@@ -3,7 +3,7 @@ import ErrorBoundary from './components/ErrorBoundary'
 import ProtectedRoute from './components/ProtectedRoute'
 import Login from './pages/Login'
 import ChatPage from './pages/ChatPage'
-import ContactsPage from './pages/ContactsPage'
+// import ContactsPage from './pages/ContactsPage'
 
 function App() {
   return (
@@ -22,14 +22,14 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route
+          {/* <Route
             path="/contacts"
             element={
               <ProtectedRoute>
                 <ContactsPage />
               </ProtectedRoute>
             }
-          />
+          /> */}
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/login" replace />} />

@@ -286,16 +286,32 @@ export default function ChatPage() {
             <div className="flex-1 overflow-y-auto p-6 scrollbar-hide">
               <SystemMessage text={`You started a secure conversation with ${activeContact?.display_name || activeContact?.username}`} />
               
-              {conversations[activeContactId]?.map((msg, idx) => (
-                <MessageBubble 
-                  key={msg.id || idx}
-                  text={msg.decryptedText}
-                  sender={msg.senderId === user.id ? user.display_name : (activeContact?.display_name || activeContact?.username)}
-                  time={new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  isSent={msg.senderId === user.id}
-                  avatarInitials={(msg.senderId === user.id ? user.display_name : (activeContact?.display_name || activeContact?.username || 'U')).substring(0, 2).toUpperCase()}
-                />
-              ))}
+              {(() => {
+                const msgs = conversations[activeContactId] || []
+                // Deduplicate: hide a message if the previous message has the same
+                // senderId AND same decryptedText AND is within 10 seconds of it.
+                // This silently suppresses WS echo duplicates on the sender's screen.
+                const deduped = msgs.filter((msg, idx) => {
+                  if (idx === 0) return true
+                  const prev = msgs[idx - 1]
+                  const sameContent = msg.decryptedText === prev.decryptedText
+                  const sameSender = String(msg.senderId) === String(prev.senderId)
+                  const tooClose = Math.abs(
+                    new Date(msg.timestamp).getTime() - new Date(prev.timestamp).getTime()
+                  ) < 10_000
+                  return !(sameContent && sameSender && tooClose)
+                })
+                return deduped.map((msg, idx) => (
+                  <MessageBubble 
+                    key={msg.id || idx}
+                    text={msg.decryptedText}
+                    sender={String(msg.senderId) === String(user.id) ? user.display_name : (activeContact?.display_name || activeContact?.username)}
+                    time={new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    isSent={String(msg.senderId) === String(user.id)}
+                    avatarInitials={(String(msg.senderId) === String(user.id) ? user.display_name : (activeContact?.display_name || activeContact?.username || 'U')).substring(0, 2).toUpperCase()}
+                  />
+                ))
+              })()}
 
               <div ref={messagesEndRef} />
             </div>
