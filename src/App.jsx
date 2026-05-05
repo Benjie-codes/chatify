@@ -1,19 +1,19 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import ErrorBoundary from './components/ErrorBoundary'
 import ProtectedRoute from './components/ProtectedRoute'
-import LoginPage from './pages/LoginPage'
+import Login from './pages/Login'
 import ChatPage from './pages/ChatPage'
 import ContactsPage from './pages/ContactsPage'
 
 function App() {
   return (
     <ErrorBoundary>
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
-          {/* Public routes */}
-          <Route path="/login" element={<LoginPage />} />
+          {/* Public */}
+          <Route path="/login" element={<Login />} />
 
-          {/* Protected routes */}
+          {/* Protected */}
           <Route
             path="/chat"
             element={
@@ -31,7 +31,7 @@ function App() {
             }
           />
 
-          {/* Default redirect */}
+          {/* Fallback */}
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>

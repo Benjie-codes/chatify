@@ -5,5 +5,4 @@
  * in the crypto implementation phase.
  */
 
-// Export nothing yet — file exists so imports don't break during scaffolding.
-export {}
+export * from './keygen'

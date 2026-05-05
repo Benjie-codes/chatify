@@ -2,7 +2,6 @@
  * ProtectedRoute — redirects to /login if the user is not authenticated
  * or if the crypto session (private key) is not ready.
  */
-
 import { Navigate, useLocation } from 'react-router-dom'
 import useAuthStore from '../store/authStore'
 import useKeyStore from '../store/keyStore'
