@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
+import grydGradient from '../assets/gryd-gradient.jpg'
 
 // Sub-components
 function Label({ htmlFor, children }) {
@@ -38,7 +39,7 @@ function SocialButton({ children }) {
 }
 
 function Login() {
-  const [mode, setMode]         = useState('login')
+  const [mode, setMode] = useState('login')
   const [username, setUsername] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [password, setPassword] = useState('')
@@ -60,7 +61,7 @@ function Login() {
       displayName: displayName.trim(),
       password,
     })
-    
+
     if (success) {
       setRegSuccess(true)
       setMode('login')
@@ -76,21 +77,21 @@ function Login() {
 
   return (
     <div className="flex min-h-screen w-full bg-white font-sans">
-      
+
       {/* Left Panel - Branding (Sticky) */}
       <div className="hidden md:flex flex-col justify-between w-[50%] max-w-[620px] h-screen sticky top-0 shrink-0 p-12 lg:p-16 relative overflow-hidden text-white">
         {/* Background Image */}
-        <div 
+        <div
           className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: "url('/src/assets/gryd-gradient.png')" }}
+          style={{ backgroundImage: `url(${grydGradient})` }}
         />
         {/* Fallback gradient if image fails/is missing */}
         <div className="absolute inset-0 bg-gradient-to-br from-[#5BE9FF] via-[#7B6FFF] to-[#2D0FA6] opacity-0 mix-blend-overlay" />
-        
+
         {/* Content overlay */}
         <div className="relative z-10 flex flex-col h-full justify-between">
           <div className="text-4xl font-bold">✳</div>
-          
+
           <div className="mt-auto pb-4">
             <p className="text-base font-medium text-white/90 mb-3">Chatify is secured</p>
             <h1 className="font-serif text-4xl lg:text-5xl leading-tight text-white">
@@ -104,13 +105,13 @@ function Login() {
       <div className="flex-1 flex flex-col justify-center px-6 py-12 sm:px-12 lg:px-20 bg-white">
         <div className="w-full max-w-md mx-auto animate-fade-in">
           <div className="text-primary-500 text-3xl font-bold mb-6 md:hidden">✳</div>
-          
+
           <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-2">
             {mode === 'login' ? 'Welcome back' : 'Create an account'}
           </h2>
           <p className="text-base text-muted mb-10">
-            {mode === 'login' 
-              ? 'Enter your details to access your account.' 
+            {mode === 'login'
+              ? 'Enter your details to access your account.'
               : 'Access your tasks, notes, and projects anytime, anywhere.'}
           </p>
 
@@ -123,7 +124,7 @@ function Login() {
           <ErrorBanner message={error} onDismiss={clearError} />
 
           <form onSubmit={mode === 'login' ? handleLogin : handleRegister} className="space-y-6" noValidate>
-            
+
             {mode === 'register' && (
               <div className="animate-fade-in">
                 <Label htmlFor="display-name">Display Name</Label>
@@ -183,8 +184,8 @@ function Login() {
               disabled={isLoading || !username || !password}
               className="w-full py-4 mt-4 bg-primary-600 hover:bg-primary-600 text-white font-semibold rounded-[10px] transition-colors disabled:opacity-50 text-lg shadow-sm"
             >
-              {isLoading 
-                ? (mode === 'login' ? 'Signing in...' : 'Creating account...') 
+              {isLoading
+                ? (mode === 'login' ? 'Signing in...' : 'Creating account...')
                 : (mode === 'login' ? 'Sign in' : 'Get Started')}
             </button>
           </form>
