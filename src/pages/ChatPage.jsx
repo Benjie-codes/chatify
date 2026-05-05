@@ -95,9 +95,11 @@ export default function ChatPage() {
     loadConversations()
   }, [loadConversations])
 
+  // Only auto-scroll when the number of messages in the active chat changes
+  const activeChatLength = conversations[activeContactId]?.length || 0
   useEffect(() => {
     scrollToBottom()
-  }, [conversations, activeContactId])
+  }, [activeChatLength, activeContactId])
 
   // Load history and check E2EE key availability when active contact changes
   useEffect(() => {
