@@ -8,29 +8,40 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Primary brand
+        // Core brand colors from design spec
         primary: {
-          50:  '#eef2ff',
-          100: '#e0e7ff',
-          200: '#c7d2fe',
-          300: '#a5b4fc',
-          400: '#818cf8',
-          500: '#6366f1',
-          600: '#4f46e5',
-          700: '#4338ca',
-          800: '#3730a3',
-          900: '#312e81',
-          950: '#1e1b4b',
+          50:  '#E3EAF0',
+          100: '#BAC8D5',
+          200: '#8DA4B8',
+          300: '#60809B',
+          400: '#3D6485',
+          500: '#1A4A6F', // mid navy
+          600: '#153D5E',
+          700: '#0F2F4D',
+          800: '#0A2038', // deep navy core (gradient center)
+          900: '#051525',
+          950: '#020617',
         },
+        // Layout colors
+        sidebar: '#1E1A2E',
+        chatbg: '#F7F8FC',
+        
+        // Muted gray
+        muted: '#8887A0',
+
         // Surface/background scale (dark-first)
         surface: {
-          50:  '#f8fafc',
+          50: '#f8fafc',
           100: '#f1f5f9',
           200: '#e2e8f0',
-          700: '#1e2433',
-          800: '#161c2a',
-          900: '#0f1420',
-          950: '#080c14',
+          300: '#cbd5e1',
+          400: '#94a3b8',
+          500: '#64748b',
+          600: '#475569',
+          700: '#334155',
+          800: '#1e293b',
+          900: '#0f172a',
+          950: '#020617',
         },
         // Accent (for online status, CTAs)
         accent: {
@@ -46,7 +57,8 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['"DM Sans"', 'system-ui', 'sans-serif'],
+        serif: ['"DM Serif Display"', 'Georgia', 'serif'],
         mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
       },
       borderRadius: {
@@ -55,8 +67,10 @@ export default {
         '4xl': '2rem',
       },
       boxShadow: {
-        'glow-primary': '0 0 20px rgba(99, 102, 241, 0.35)',
+        'glow-primary': '0 0 20px rgba(74, 59, 255, 0.35)',
         'glow-accent':  '0 0 20px rgba(16, 185, 129, 0.35)',
+        'glow-amber':   '0 0 20px rgba(245, 158, 11, 0.35)',
+        'glow-red':     '0 0 20px rgba(239, 68, 68, 0.35)',
         'glass':        '0 8px 32px rgba(0, 0, 0, 0.37)',
       },
       backdropBlur: {

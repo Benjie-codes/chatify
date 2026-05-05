@@ -11,6 +11,15 @@ const api = axios.create({
   timeout: 10_000,
 })
 
+// SECURITY HARDENING: Reject any non-HTTPS requests (except localhost for dev)
+api.interceptors.request.use((config) => {
+  const url = new URL(config.url, config.baseURL)
+  if (url.protocol === 'http:' && url.hostname !== 'localhost' && url.hostname !== '127.0.0.1') {
+    return Promise.reject(new Error(`Security Error: Insecure HTTP request blocked to ${url.href}`))
+  }
+  return config
+})
+
 // ─── Request Interceptor — attach JWT ────────────────────────────────────────
 
 api.interceptors.request.use(
