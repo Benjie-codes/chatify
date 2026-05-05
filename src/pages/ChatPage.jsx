@@ -12,6 +12,8 @@ import useChatStore from '../store/chatStore'
 import { useMessaging } from '../hooks/useMessaging'
 import { useAuth } from '../hooks/useAuth'
 import { searchUsers } from '../services/api'
+import { encryptFile } from '../crypto/mediaCrypto'
+import { uploadToCloudinary } from '../services/uploadService'
 
 export default function ChatPage() {
   const navigate = useNavigate()
@@ -29,6 +31,8 @@ export default function ChatPage() {
   const setContacts = useChatStore(s => s.setContacts)
 
   const [inputText, setInputText] = useState('')
+  const [isUploading, setIsUploading] = useState(false)
+  const fileInputRef = useRef(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [isSearching, setIsSearching] = useState(false)
@@ -121,6 +125,41 @@ export default function ChatPage() {
       setInputText('')
     } catch (err) {
       useToastStore.getState().addToast('Failed to send — please retry', 'red')
+    }
+  }
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file || !activeContactId) return
+
+    setIsUploading(true)
+    try {
+      // 1. Encrypt the file locally
+      useToastStore.getState().addToast('Encrypting media locally...', 'blue')
+      const { encryptedBlob, fileKeyBase64, ivBase64 } = await encryptFile(file)
+      
+      // 2. Upload the encrypted blob
+      useToastStore.getState().addToast('Uploading secure media...', 'blue')
+      const secureUrl = await uploadToCloudinary(encryptedBlob)
+
+      // 3. Send message payload
+      const payload = {
+        type: 'media',
+        fileUrl: secureUrl,
+        fileKey: fileKeyBase64,
+        iv: ivBase64,
+        mimeType: file.type,
+        fileName: file.name
+      }
+      
+      await sendMessage(activeContactId, JSON.stringify(payload))
+      useToastStore.getState().addToast('Media sent securely', 'green')
+    } catch (err) {
+      console.error('Media send error:', err)
+      useToastStore.getState().addToast('Failed to send media. Check Cloudinary keys.', 'red')
+    } finally {
+      setIsUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
@@ -322,29 +361,36 @@ export default function ChatPage() {
             {/* Input Bar */}
             <div className="chat-input-bar p-4 shrink-0 border-t">
               <form onSubmit={handleSend} className="chat-input-pill flex items-center gap-3 px-2 py-2 rounded-full border">
-                {/* <button type="button" className="p-2 text-slate-400 hover:text-slate-600 transition-colors">
+                <button 
+                  type="button" 
+                  className="p-2 text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                >
                   <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                   </svg>
-                </button> */}
+                </button>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileChange} 
+                  accept="image/*,video/*" 
+                  className="hidden" 
+                />
 
                 <input
                   type="text"
                   value={inputText}
                   onChange={e => setInputText(e.target.value)}
-                  placeholder="Write a message"
-                  className="chat-input-field flex-1 border-none focus:outline-none text-sm px-5 placeholder:text-slate-400"
+                  placeholder={isUploading ? "Processing secure media..." : "Write a message"}
+                  disabled={isUploading}
+                  className="chat-input-field flex-1 border-none focus:outline-none text-sm px-2 placeholder:text-slate-400 disabled:opacity-50 disabled:bg-transparent"
                 />
-
-                {/* <button type="button" className="p-2 text-slate-400 hover:text-slate-600 transition-colors">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </button> */}
 
                 <button
                   type="submit"
-                  disabled={!inputText.trim()}
+                  disabled={!inputText.trim() || isUploading}
                   className="w-10 h-10 rounded-full bg-primary-500 hover:bg-primary-600 flex items-center justify-center text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 ml-0.5" viewBox="0 0 20 20" fill="currentColor">

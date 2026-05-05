@@ -4,7 +4,8 @@
  * Renders a single chat message bubble with distinct styles for sent vs received.
  * Also handles the decryption failure state gracefully without crashing.
  */
-import React from 'react'
+import React, { useState, useEffect } from 'react'
+import { decryptFile } from '../crypto/mediaCrypto'
 
 export function MessageBubble({ 
   text, 
@@ -18,6 +19,69 @@ export function MessageBubble({
 
   // Format the time string (e.g. "8 min" or real time if provided)
   const displayTime = time || ''
+
+  // State for media handling
+  const [mediaPayload, setMediaPayload] = useState(null)
+  const [mediaUrl, setMediaUrl] = useState(null)
+  const [isDecryptingMedia, setIsDecryptingMedia] = useState(false)
+  const [mediaError, setMediaError] = useState(null)
+
+  useEffect(() => {
+    if (!text || isDecryptionFailed) return
+
+    // Try parsing the text as JSON to see if it's a media payload
+    try {
+      const parsed = JSON.parse(text)
+      if (parsed && parsed.type === 'media' && parsed.fileUrl) {
+        setMediaPayload(parsed)
+      }
+    } catch (e) {
+      // Not a JSON payload, just normal text
+    }
+  }, [text, isDecryptionFailed])
+
+  useEffect(() => {
+    if (!mediaPayload) return
+
+    let isMounted = true
+
+    const loadAndDecryptMedia = async () => {
+      setIsDecryptingMedia(true)
+      try {
+        // 1. Download the encrypted blob from the CDN
+        const response = await fetch(mediaPayload.fileUrl)
+        if (!response.ok) throw new Error('Failed to download encrypted media')
+        const encryptedBlob = await response.blob()
+
+        // 2. Decrypt the blob locally
+        const decryptedBlob = await decryptFile(
+          encryptedBlob,
+          mediaPayload.fileKey,
+          mediaPayload.iv,
+          mediaPayload.mimeType
+        )
+
+        // 3. Create a local Object URL for display
+        if (isMounted) {
+          const url = URL.createObjectURL(decryptedBlob)
+          setMediaUrl(url)
+        }
+      } catch (err) {
+        console.error('Media decryption error:', err)
+        if (isMounted) setMediaError('Unable to decrypt media')
+      } finally {
+        if (isMounted) setIsDecryptingMedia(false)
+      }
+    }
+
+    loadAndDecryptMedia()
+
+    return () => {
+      isMounted = false
+      if (mediaUrl) URL.revokeObjectURL(mediaUrl)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mediaPayload])
 
   return (
     <div className={`flex w-full mb-4 ${isSent ? 'justify-end' : 'justify-start'}`}>
@@ -37,6 +101,25 @@ export function MessageBubble({
             <span className="italic text-red-500 text-sm">
               [Unable to decrypt this message]
             </span>
+          ) : mediaPayload ? (
+            <div className="flex flex-col gap-2">
+              {isDecryptingMedia && (
+                <div className="flex items-center gap-2 text-white/80 text-sm">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Decrypting media...
+                </div>
+              )}
+              {mediaError && (
+                <span className="italic text-red-300 text-sm">{mediaError}</span>
+              )}
+              {mediaUrl && (
+                mediaPayload.mimeType?.startsWith('video/') ? (
+                  <video src={mediaUrl} controls className="max-w-full rounded-lg" style={{ maxHeight: '300px' }} />
+                ) : (
+                  <img src={mediaUrl} alt={mediaPayload.fileName || 'Encrypted Media'} className="max-w-full rounded-lg" style={{ maxHeight: '300px' }} />
+                )
+              )}
+            </div>
           ) : (
             <p className="text-[15px] leading-relaxed break-words whitespace-pre-wrap">
               {text}
