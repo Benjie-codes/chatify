@@ -1,4 +1,4 @@
-import { bufferToBase64, base64ToBuffer, stringToBuffer } from '../utils/encoding'
+import { bufferToBase64, base64ToBuffer, stringToBuffer } from '../utils/encoding.js'
 
 /**
  * Generate an RSA-OAEP 2048-bit keypair for encrypting per-message AES keys.

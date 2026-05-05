@@ -44,7 +44,7 @@ function Login() {
 
   const handleLogin = async (e) => {
     e.preventDefault()
-    await login({ username: username.trim(), password })
+    await login({ username: username.trim().toLowerCase(), password })
   }
 
   const handleRegister = async (e) => {
