@@ -7,6 +7,7 @@ import useKeyStore from '../store/keyStore'
 import useChatStore from '../store/chatStore'
 import { encryptMessage, decryptMessage } from '../crypto/messageCrypto'
 import { fetchRecipientPublicKey } from '../crypto/keyExchange'
+import { useToastStore } from '../components/Toast'
 
 export function useMessaging() {
   const user = useAuthStore((s) => s.user)
@@ -16,8 +17,12 @@ export function useMessaging() {
   const addMessage = useChatStore((s) => s.addMessage)
   const confirmOptimisticMessage = useChatStore((s) => s.confirmOptimisticMessage)
   const updateMessageStatus = useChatStore((s) => s.updateMessageStatus)
-  const setContacts = useChatStore((s) => s.setContacts)
   const setConversationHistory = useChatStore((s) => s.setConversationHistory)
+
+  // Ref so the WS effect always calls the latest loadConversations
+  // without needing it in the effect's dependency array (which would
+  // cause listeners to tear down and re-register on every render).
+  const loadConversationsRef = useRef(null)
 
   /**
    * Fetch and import a user's public key, caching it in memory.
@@ -35,16 +40,18 @@ export function useMessaging() {
 
   // ─── Loading Conversations & History ──────────────────────────────────────
 
+  // Read setContacts directly from the store so this callback has a stable
+  // identity and doesn't force downstream effects to re-run.
   const loadConversations = useCallback(async () => {
     try {
       const { data } = await messagesApi.getConversations()
-      // ConversationSummary returns user_id (not id) — normalize to id so the rest of the UI works
+      // ConversationSummary returns user_id (not id) — normalize so the rest of the UI works
       const normalized = data.map(c => ({ ...c, id: c.user_id }))
-      setContacts(normalized)
+      useChatStore.getState().setContacts(normalized)
     } catch (err) {
       console.error('[useMessaging] Failed to load conversations', err)
     }
-  }, [setContacts])
+  }, []) // stable — reads store imperatively, no reactive deps
 
   const loadHistory = useCallback(async (userId) => {
     if (!myPrivateKey || !user) return
@@ -143,6 +150,11 @@ export function useMessaging() {
 
   // ─── Receiving Messages & Presence ────────────────────────────────────────
 
+  // Keep the ref in sync so the WS handler always has the latest version
+  useEffect(() => {
+    loadConversationsRef.current = loadConversations
+  }, [loadConversations])
+
   useEffect(() => {
     if (!myPrivateKey || !user) return
 
@@ -203,10 +215,46 @@ export function useMessaging() {
 
       addMessage(conversationId, messageObj)
 
-      // Auto-refresh the sidebar if this is a new conversation
+      // ── Real-time contact list update ──────────────────────────────────────
+      const activeId = useChatStore.getState().activeContactId
       const currentContacts = useChatStore.getState().contacts
-      if (!currentContacts.some(c => String(c.id) === conversationId)) {
-        loadConversations()
+      const isNewContact = !currentContacts.some(c => String(c.id) === conversationId)
+      const isActiveConversation = String(activeId) === conversationId
+
+      if (isNewContact) {
+        // Step 1 — Instantly surface the sender in the sidebar with what we know.
+        //          This gives user B immediate visual feedback with zero API wait.
+        useChatStore.getState().upsertContact({
+          id: conversationId,
+          user_id: conversationId,
+          display_name: null,        // unknown until API responds
+          username: 'New message',   // readable placeholder
+          is_online: true,
+          last_message: decryptedText,
+          last_message_time: messageObj.timestamp,
+          unread_count: 1,
+        })
+
+        // Step 2 — Fetch the real profile from the API and replace the placeholder.
+        loadConversationsRef.current?.().then(() => {
+          const updatedContacts = useChatStore.getState().contacts
+          const sender = updatedContacts.find(c => String(c.id) === conversationId)
+          const senderName = sender?.display_name || sender?.username || 'Someone'
+          useToastStore.getState().addToast(`💬 New chat from ${senderName}`, 'amber', 6000)
+        })
+      } else {
+        // Known contact — update their preview text and unread badge immediately.
+        useChatStore.getState().upsertContact({
+          id: conversationId,
+          last_message: decryptedText,
+          last_message_time: messageObj.timestamp,
+        })
+
+        if (!isActiveConversation) {
+          const sender = currentContacts.find(c => String(c.id) === conversationId)
+          const senderName = sender?.display_name || sender?.username || 'Someone'
+          useToastStore.getState().addToast(`💬 New message from ${senderName}`, 'info', 4000)
+        }
       }
     }
 
@@ -225,7 +273,93 @@ export function useMessaging() {
       socketService.off('user.offline', handleOffline)
       socketService.off('presence', handlePresence)
     }
-  }, [myPrivateKey, user, addMessage, loadConversations])
+  // loadConversations is intentionally excluded — accessed via ref to prevent
+  // listener churn. addMessage is a stable Zustand action, safe to include.
+  }, [myPrivateKey, user, addMessage])
+
+  // ─── Polling — safety net alongside the WebSocket ─────────────────────────
+  //
+  // The WebSocket is the primary delivery channel. Polling acts as a fallback:
+  // it catches messages that arrive during brief WS disconnects, ensures the
+  // contact list stays current, and keeps the active chat in sync with the
+  // server even when the WS misses a frame.
+  //
+  // Intervals:
+  //   • Contact list  — every 15 s  (lightweight, just the conversation summaries)
+  //   • Active chat   — every 8 s   (slightly heavier: full decrypt of new msgs)
+  //
+  // Both intervals are suspended while the browser tab is hidden to avoid
+  // unnecessary network traffic and battery drain.
+
+  const loadHistoryRef = useRef(null)
+  useEffect(() => { loadHistoryRef.current = loadHistory }, [loadHistory])
+
+  // Poll the contact / conversation list
+  useEffect(() => {
+    if (!user || !myPrivateKey) return
+
+    const INTERVAL_MS = 15_000
+
+    let intervalId = null
+
+    const start = () => {
+      if (intervalId) return
+      intervalId = setInterval(() => {
+        loadConversationsRef.current?.()
+      }, INTERVAL_MS)
+    }
+
+    const stop = () => {
+      clearInterval(intervalId)
+      intervalId = null
+    }
+
+    const handleVisibility = () =>
+      document.hidden ? stop() : start()
+
+    // Kick off immediately, then set the interval
+    loadConversationsRef.current?.()
+    start()
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    return () => {
+      stop()
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+  }, [user, myPrivateKey])
+
+  // Poll the active conversation history
+  useEffect(() => {
+    if (!user || !myPrivateKey) return
+
+    const INTERVAL_MS = 8_000
+
+    let intervalId = null
+
+    const start = () => {
+      if (intervalId) return
+      intervalId = setInterval(() => {
+        const activeId = useChatStore.getState().activeContactId
+        if (activeId) loadHistoryRef.current?.(activeId)
+      }, INTERVAL_MS)
+    }
+
+    const stop = () => {
+      clearInterval(intervalId)
+      intervalId = null
+    }
+
+    const handleVisibility = () =>
+      document.hidden ? stop() : start()
+
+    start()
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    return () => {
+      stop()
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+  }, [user, myPrivateKey])
 
   return { sendMessage, loadConversations, loadHistory, getContactPublicKey }
 }

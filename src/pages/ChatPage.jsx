@@ -44,6 +44,15 @@ export default function ChatPage() {
     return window.matchMedia('(prefers-color-scheme: dark)').matches
   })
   const messagesEndRef = useRef(null)
+  const textareaRef = useRef(null)
+
+  // Auto-resize the textarea: shrink back to 1 row then expand to fit content
+  useEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [inputText])
 
   // Apply / remove the 'dark' class on the HTML root whenever isDark changes
   useEffect(() => {
@@ -114,6 +123,8 @@ export default function ChatPage() {
   const handleSend = async (e) => {
     e.preventDefault()
     if (!inputText.trim() || !activeContactId) return
+    // Reset textarea height after send
+    if (textareaRef.current) textareaRef.current.style.height = 'auto'
 
     // Security Hardening: Strip null bytes
     let sanitized = inputText.replace(/\0/g, '')
@@ -214,12 +225,12 @@ export default function ChatPage() {
         </div>
 
         {/* Sidebar Nav Icons */}
-        <div className="flex justify-between items-center px-6 py-3 border-b border-white/5">
+        {/* <div className="flex justify-between items-center px-6 py-3 border-b border-white/5">
           <button className="text-white p-2 bg-white/10 rounded-lg"><svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" /></svg></button>
           <button className="text-muted hover:text-white p-2 transition-colors"><svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" /></svg></button>
-          {/* <button className="text-muted hover:text-white p-2 transition-colors"><svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" /></svg></button> */}
+          <button className="text-muted hover:text-white p-2 transition-colors"><svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" /></svg></button>
           <button className="text-muted hover:text-white p-2 transition-colors"><svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" /></svg></button>
-        </div>
+        </div> */}
 
         {/* Search */}
         <div className="p-4 border-b border-white/5">
@@ -263,7 +274,7 @@ export default function ChatPage() {
               <ContactItem
                 key={contact.id}
                 name={contact.display_name || contact.username}
-                preview={contact.last_message || 'Start a conversation...'}
+                preview={contact.last_message || 'End-to-End Encrypted'}
                 time={contact.last_message_time ? new Date(contact.last_message_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                 unreadCount={contact.unread_count || 0}
                 isOnline={contact.is_online}
@@ -280,7 +291,7 @@ export default function ChatPage() {
         {activeContactId ? (
           <>
             {/* Chat Topbar */}
-            <header className="chat-header h-[72px] px-4 md:px-6 flex items-center justify-between shrink-0 shadow-sm z-10 border-b">
+            <header className=" sticky chat-header h-[72px] px-4 md:px-6 flex items-center justify-between shrink-0 shadow-sm z-10 border-b">
               <div className="flex items-center gap-2 md:gap-3">
                 <button
                   className="md:hidden p-2 -ml-2 text-slate-400 hover:text-slate-600 transition-colors"
@@ -370,10 +381,10 @@ export default function ChatPage() {
 
             {/* Input Bar */}
             <div className="chat-input-bar p-4 shrink-0 border-t">
-              <form onSubmit={handleSend} className="chat-input-pill flex items-center gap-3 px-2 py-2 rounded-full border">
+              <form onSubmit={handleSend} className="chat-input-pill flex items-center gap-2 px-3 py-2.5 rounded-2xl border">
                 <button 
                   type="button" 
-                  className="p-2 text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
+                  className="p-1.5 text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50 shrink-0"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploading}
                 >
@@ -389,21 +400,29 @@ export default function ChatPage() {
                   className="hidden" 
                 />
 
-                <input
-                  type="text"
+                <textarea
+                  ref={textareaRef}
+                  rows={1}
                   value={inputText}
                   onChange={e => setInputText(e.target.value)}
-                  placeholder={isUploading ? "Processing secure media..." : "Write a message"}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      handleSend(e)
+                    }
+                  }}
+                  placeholder={isUploading ? 'Processing secure media...' : 'Write a message  •  Shift+Enter for new line'}
                   disabled={isUploading}
-                  className="chat-input-field flex-1 border-none focus:outline-none text-sm px-2 placeholder:text-slate-400 disabled:opacity-50 disabled:bg-transparent"
+                  style={{ maxHeight: '9rem', resize: 'none' }}
+                  className="chat-input-field flex-1 border-none focus:outline-none text-sm px-1 py-0 placeholder:text-slate-400 disabled:opacity-50 disabled:bg-transparent overflow-y-auto leading-[1.5rem] align-middle"
                 />
 
                 <button
                   type="submit"
                   disabled={!inputText.trim() || isUploading}
-                  className="w-10 h-10 rounded-full bg-primary-500 hover:bg-primary-600 flex items-center justify-center text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                  className="w-9 h-9 rounded-full bg-primary-500 hover:bg-primary-600 flex items-center justify-center text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm shrink-0"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 ml-0.5" viewBox="0 0 20 20" fill="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 ml-0.5" viewBox="0 0 20 20" fill="currentColor">
                     <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
                   </svg>
                 </button>

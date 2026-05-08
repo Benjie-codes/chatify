@@ -33,8 +33,10 @@ export function ToastContainer() {
       {toasts.map((toast) => {
         const bgColors = {
           info: 'bg-slate-800 text-white',
-          amber: 'bg-amber-500 text-white shadow-glow-amber',
-          red: 'bg-red-500 text-white shadow-glow-red'
+          amber: 'bg-amber-500 text-white',
+          green: 'bg-emerald-500 text-white',
+          blue: 'bg-blue-600 text-white',
+          red: 'bg-red-500 text-white'
         }
 
         return (

@@ -18,6 +18,27 @@ const useChatStore = create((set, get) => ({
   setActiveContactId: (id) => set({ activeContactId: id }),
 
   /**
+   * Insert or update a single contact entry.
+   * If a contact with the same id already exists, its fields are merged
+   * (preserving any data the provisional entry may be missing).
+   * If it's brand new, it is prepended to the top of the list so it's
+   * immediately visible without waiting for a full API refresh.
+   *
+   * @param {Object} contact - Must include at minimum { id }
+   */
+  upsertContact: (contact) => set((state) => {
+    const exists = state.contacts.some(c => String(c.id) === String(contact.id))
+    if (exists) {
+      return {
+        contacts: state.contacts.map(c =>
+          String(c.id) === String(contact.id) ? { ...c, ...contact } : c
+        )
+      }
+    }
+    return { contacts: [contact, ...state.contacts] }
+  }),
+
+  /**
    * Add a new message (incoming or outgoing) to a conversation.
    * If the conversation doesn't exist, it is created.
    * 
